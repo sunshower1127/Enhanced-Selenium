@@ -264,7 +264,7 @@ class Element:
     def text(self):
         return self.current_element.text
 
-    def screenshot(self):
+    def screenshot(self, path):
         return self.current_element.screenshot_as_png
 
     def prop(self, prop):

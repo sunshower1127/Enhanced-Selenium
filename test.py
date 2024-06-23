@@ -1,5 +1,5 @@
-from models import ChromeDriver
+from selenium.webdriver.remote.webelement import WebElement
+from utils import get_xpath
 
-web = ChromeDriver()
 
-element1 = web.find_element()
+print(get_xpath())
