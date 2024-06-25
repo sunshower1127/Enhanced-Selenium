@@ -8,6 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import NoSuchElementException
 
 from utils import get_xpath
 
@@ -21,16 +22,15 @@ class ChromeDriver(webdriver.Chrome):
 
         super().__init__(options=options)
         maximize and self.maximize_window()
-        self.__wait: list[WebDriverWait] = [None]
         self.set_internal_wait()
 
     def set_internal_wait(self, timeout=20, freq=0.5):
-        self.__wait[0] = WebDriverWait(self, timeout=timeout, poll_frequency=freq)
+        self.__wait = WebDriverWait(self, timeout=timeout, poll_frequency=freq)
 
     def wait(self, secs: float = None, key: str = None):
         secs and time.sleep(secs)
         key and keyboard.wait(key)
-        return self.__wait[0]
+        return self.__wait
 
     def find(
         self,
@@ -43,20 +43,30 @@ class ChromeDriver(webdriver.Chrome):
         text_contains: str | list[str] = None,
         text_not: str | list[str] = None,
         text_not_contains: str | list[str] = None,
+        xpath: str = None,
     ):
-        value = get_xpath(
-            tag,
-            id,
-            name,
-            css_class,
-            css_class_contains,
-            text,
-            text_contains,
-            text_not,
-            text_not_contains,
+        xpath or (
+            xpath := get_xpath(
+                tag,
+                id,
+                name,
+                css_class,
+                css_class_contains,
+                text,
+                text_contains,
+                text_not,
+                text_not_contains,
+            )
         )
-        self.wait().until(EC.presence_of_element_located((By.XPATH, value)))
-        return Element(self.__wait, self.find_element(By.XPATH, value))
+        try:
+            self.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
+        except NoSuchElementException:
+            if self.debug:
+                xpath = self.__debug_find(xpath)
+            else:
+                raise NoSuchElementException(f"Element not found: {xpath}")
+
+        return Element(self.find_element(By.XPATH, xpath))
 
     def find_all(
         self,
@@ -83,10 +93,7 @@ class ChromeDriver(webdriver.Chrome):
         )
         self.wait().until(EC.presence_of_all_elements_located((By.XPATH, value)))
         return Elements(
-            [
-                Element(self.__wait, element)
-                for element in self.find_elements(By.XPATH, value)
-            ],
+            [Element(element) for element in self.find_elements(By.XPATH, value)],
         )
 
     def close_all(self):
@@ -121,7 +128,26 @@ class ChromeDriver(webdriver.Chrome):
         return self.switch_to.alert
 
     def goto_focused(self):
-        return Element(self.__wait, self.switch_to.active_element)
+        return Element(self.switch_to.active_element)
+
+    def __debug_find(self, xpath: str):
+        """모든 window와 frame을 탐색하면서 element를 찾는다."""
+        for handle in self.window_handles:
+            self.switch_to.window(handle)
+            for name in self.find_elements(By.TAG_NAME, "iframe"):
+                self.switch_to.frame(name)
+                try:
+                    self.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
+                    return xpath
+                except NoSuchElementException:
+                    pass
+                self.switch_to.default_content()
+            try:
+                self.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
+                return xpath
+            except NoSuchElementException:
+                pass
+        raise NoSuchElementException(f"Element not found: {xpath}")
 
     # 1. switch_to -> alert, frame, window, active_element, default_content, parent_frame
     # 얘네들을 어떻게 해야할지. -> 후처리 같은거 -> 일단 세세한 기능들 한 번 알아봐야할듯.
@@ -135,13 +161,14 @@ class ChromeDriver(webdriver.Chrome):
 
 class Element(WebElement):
     # 지금 이 생성자 수상함. 이렇게 상속받는게 맞나?
-    def __init__(self, wait: list[WebDriverWait], element: WebElement):
-        self.__wait = wait
+    def __init__(self, element: WebElement):
         super().__init__(element.parent, element.id)
+        self.driver: ChromeDriver = super().parent
 
-    def __wait(self, secs=0.0):
-        secs and time.sleep(secs)
-        return self.__wait[0]
+    def parent(self, levels=1):
+        xpath = "/".join([".."] * levels)
+        self.driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
+        return Element(self.find_element(By.XPATH, xpath))
 
     def find(
         self,
@@ -166,7 +193,7 @@ class Element(WebElement):
             text_not,
             text_not_contains,
         )
-        self.wait().until(EC.presence_of_element_located((By.XPATH, value)))
+        self.driver.wait().until(EC.presence_of_element_located((By.XPATH, value)))
         return Element(self.__wait, self.find_element(By.XPATH, value))
 
     def find_all(
@@ -192,7 +219,7 @@ class Element(WebElement):
             text_not,
             text_not_contains,
         )
-        self.wait().until(EC.presence_of_all_elements_located((By.XPATH, value)))
+        self.driver.wait().until(EC.presence_of_all_elements_located((By.XPATH, value)))
         return Elements(
             [
                 Element(self.__wait, element)
@@ -217,17 +244,15 @@ class Elements:
     def __init__(self, elements: list[Element]):
         self.__elements = elements
         self.texts = [element.text for element in self.__elements]
-        self.parents = [element.parent for element in self.__elements]
+
+    def parent(self, levels=1):
+        return [element.parent(levels) for element in self.__elements]
 
     def get(self, index=0):
         return self.__elements[index]
 
     def get_all(self):
         return self.__elements
-
-    def __wait(self, secs=0.0):
-        secs and time.sleep(secs)
-        return self.__wait[0]
 
     def find(self):
         return [element.find() for element in self.__elements]
@@ -263,3 +288,7 @@ class SeleniumDebugger:
                     user_input = input()
                 if user_input.lower() != "r":
                     break
+
+
+class SeleniumReleaser:
+    pass
