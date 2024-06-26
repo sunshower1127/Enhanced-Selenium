@@ -17,36 +17,41 @@ class ChromeDriver(webdriver.Chrome):
     def __init__(self, debug=False, audio=False, maximize=True):
         self.debug = debug
         options = webdriver.ChromeOptions()
-        debug and options.add_experimental_option("detach", True)
-        audio or options.add_argument("--mute-audio")
+        if debug:
+            options.add_experimental_option("detach", True)
+        if not audio:
+            options.add_argument("--mute-audio")
 
         super().__init__(options=options)
-        maximize and self.maximize_window()
+        if maximize:
+            self.maximize_window()
         self.set_internal_wait()
 
     def set_internal_wait(self, timeout=20, freq=0.5):
         self.__wait = WebDriverWait(self, timeout=timeout, poll_frequency=freq)
 
-    def wait(self, secs: float = None, key: str = None):
-        secs and time.sleep(secs)
-        key and keyboard.wait(key)
+    def wait(self, secs: float = 0.0, key: str = ""):
+        if secs:
+            time.sleep(secs)
+        if key:
+            keyboard.wait(key)
         return self.__wait
 
     def find(
         self,
         tag="*",
-        id: str | list[str] = None,
-        name: str | list[str] = None,
-        css_class: str | list[str] = None,
-        css_class_contains: str | list[str] = None,
-        text: str | list[str] = None,
-        text_contains: str | list[str] = None,
-        text_not: str | list[str] = None,
-        text_not_contains: str | list[str] = None,
-        xpath: str = None,
+        id: str | list[str] | None = None,
+        name: str | list[str] | None = None,
+        css_class: str | list[str] | None = None,
+        css_class_contains: str | list[str] | None = None,
+        text: str | list[str] | None = None,
+        text_contains: str | list[str] | None = None,
+        text_not: str | list[str] | None = None,
+        text_not_contains: str | list[str] | None = None,
+        xpath: str | None = None,
     ):
-        xpath or (
-            xpath := get_xpath(
+        if xpath is None:
+            xpath = get_xpath(
                 tag,
                 id,
                 name,
@@ -57,7 +62,7 @@ class ChromeDriver(webdriver.Chrome):
                 text_not,
                 text_not_contains,
             )
-        )
+
         try:
             self.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
         except NoSuchElementException:
@@ -68,33 +73,33 @@ class ChromeDriver(webdriver.Chrome):
 
         return Element(self.find_element(By.XPATH, xpath))
 
-    def find_all(
-        self,
-        tag="*",
-        id: str | list[str] = None,
-        name: str | list[str] = None,
-        css_class: str | list[str] = None,
-        css_class_contains: str | list[str] = None,
-        text: str | list[str] = None,
-        text_contains: str | list[str] = None,
-        text_not: str | list[str] = None,
-        text_not_contains: str | list[str] = None,
-    ):
-        value = get_xpath(
-            tag,
-            id,
-            name,
-            css_class,
-            css_class_contains,
-            text,
-            text_contains,
-            text_not,
-            text_not_contains,
-        )
-        self.wait().until(EC.presence_of_all_elements_located((By.XPATH, value)))
-        return Elements(
-            [Element(element) for element in self.find_elements(By.XPATH, value)],
-        )
+    # def find_all(
+    #     self,
+    #     tag="*",
+    #     id: str | list[str] | None = None,
+    #     name: str | list[str] = None,
+    #     css_class: str | list[str] = None,
+    #     css_class_contains: str | list[str] = None,
+    #     text: str | list[str] = None,
+    #     text_contains: str | list[str] = None,
+    #     text_not: str | list[str] = None,
+    #     text_not_contains: str | list[str] = None,
+    # ):
+    #     value = get_xpath(
+    #         tag,
+    #         id,
+    #         name,
+    #         css_class,
+    #         css_class_contains,
+    #         text,
+    #         text_contains,
+    #         text_not,
+    #         text_not_contains,
+    #     )
+    #     self.wait().until(EC.presence_of_all_elements_located((By.XPATH, value)))
+    #     return Elements(
+    #         [Element(element) for element in self.find_elements(By.XPATH, value)],
+    #     )
 
     def close_all(self):
         # quit이랑 비교해봐야함.
@@ -106,17 +111,19 @@ class ChromeDriver(webdriver.Chrome):
 
     def goto_frame(self, name: str | list[str] = "default"):
         # 얘도 고쳐보고 싶음.
-        isinstance(name, str) and (name := [name])
+        if isinstance(name, str):
+            name = [name]
 
         if name[0] == "default":
             self.switch_to.default_content()
         elif name[0] == "parent":
             self.switch_to.parent_frame()
         else:
-            self.wait().until(EC.presence_of_element_located((By.NAME, name)))
-            self.switch_to.frame(name)
+            self.wait().until(EC.presence_of_element_located((By.NAME, name[0])))
+            self.switch_to.frame(name[0])
 
-        len(name) == 1 or self.goto_frame(name[1:])
+        if len(name) > 1:
+            self.goto_frame(name[1:])
 
     def goto_window(self, n=1):
         # 이건 근데 좀 고쳐보고 싶음
@@ -170,62 +177,59 @@ class Element(WebElement):
         self.driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
         return Element(self.find_element(By.XPATH, xpath))
 
-    def find(
-        self,
-        tag="*",
-        id: str | list[str] = None,
-        name: str | list[str] = None,
-        css_class: str | list[str] = None,
-        css_class_contains: str | list[str] = None,
-        text: str | list[str] = None,
-        text_contains: str | list[str] = None,
-        text_not: str | list[str] = None,
-        text_not_contains: str | list[str] = None,
-    ):
-        value = get_xpath(
-            tag,
-            id,
-            name,
-            css_class,
-            css_class_contains,
-            text,
-            text_contains,
-            text_not,
-            text_not_contains,
-        )
-        self.driver.wait().until(EC.presence_of_element_located((By.XPATH, value)))
-        return Element(self.__wait, self.find_element(By.XPATH, value))
+    # def find(
+    #     self,
+    #     tag="*",
+    #     id: str | list[str] = None,
+    #     name: str | list[str] = None,
+    #     css_class: str | list[str] = None,
+    #     css_class_contains: str | list[str] = None,
+    #     text: str | list[str] = None,
+    #     text_contains: str | list[str] = None,
+    #     text_not: str | list[str] = None,
+    #     text_not_contains: str | list[str] = None,
+    # ):
+    #     value = get_xpath(
+    #         tag,
+    #         id,
+    #         name,
+    #         css_class,
+    #         css_class_contains,
+    #         text,
+    #         text_contains,
+    #         text_not,
+    #         text_not_contains,
+    #     )
+    #     self.driver.wait().until(EC.presence_of_element_located((By.XPATH, value)))
+    #     return Element(self.find_element(By.XPATH, value))
 
-    def find_all(
-        self,
-        tag="*",
-        id: str | list[str] = None,
-        name: str | list[str] = None,
-        css_class: str | list[str] = None,
-        css_class_contains: str | list[str] = None,
-        text: str | list[str] = None,
-        text_contains: str | list[str] = None,
-        text_not: str | list[str] = None,
-        text_not_contains: str | list[str] = None,
-    ):
-        value = get_xpath(
-            tag,
-            id,
-            name,
-            css_class,
-            css_class_contains,
-            text,
-            text_contains,
-            text_not,
-            text_not_contains,
-        )
-        self.driver.wait().until(EC.presence_of_all_elements_located((By.XPATH, value)))
-        return Elements(
-            [
-                Element(self.__wait, element)
-                for element in self.find_elements(By.XPATH, value)
-            ],
-        )
+    # def find_all(
+    #     self,
+    #     tag="*",
+    #     id: str | list[str] = None,
+    #     name: str | list[str] = None,
+    #     css_class: str | list[str] = None,
+    #     css_class_contains: str | list[str] = None,
+    #     text: str | list[str] = None,
+    #     text_contains: str | list[str] = None,
+    #     text_not: str | list[str] = None,
+    #     text_not_contains: str | list[str] = None,
+    # ):
+    #     value = get_xpath(
+    #         tag,
+    #         id,
+    #         name,
+    #         css_class,
+    #         css_class_contains,
+    #         text,
+    #         text_contains,
+    #         text_not,
+    #         text_not_contains,
+    #     )
+    #     self.driver.wait().until(EC.presence_of_all_elements_located((By.XPATH, value)))
+    #     return Elements(
+    #         [Element(element) for element in self.find_elements(By.XPATH, value)],
+    #     )
 
     def move_mouse(self):
         ActionChains(self._parent).move_to_element(self).perform()
@@ -254,8 +258,8 @@ class Elements:
     def get_all(self):
         return self.__elements
 
-    def find(self):
-        return [element.find() for element in self.__elements]
+    # def find(self):
+    #     return [element.find() for element in self.__elements]
 
     def click(self):
         return [element.click() for element in self.__elements]
@@ -270,7 +274,7 @@ class Elements:
 
 
 class SeleniumDebugger:
-    def run(path):
+    def run(self, path):
         while True:
             result = subprocess.run(
                 "python " + path, shell=True, text=True, capture_output=True

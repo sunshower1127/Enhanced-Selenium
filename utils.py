@@ -1,46 +1,72 @@
+from typing import Literal
 import numpy as np
 import cv2 as cv
 from pytesseract import image_to_string
 from datetime import datetime
 
 
+# 테스트 통과
 def get_xpath(
+    axis: Literal[
+        "ancestor",
+        "ansestor-or-self",
+        "child",
+        "descendant",
+        "descendant-or-self",
+        "following",
+        "following-sibling",
+        "parent",
+        "preceding",
+        "preceding-sibling",
+    ] = "descendant",
     tag: str = "*",
-    id: str | list[str] = None,
-    name: str | list[str] = None,
-    css_class: str | list[str] = None,
-    css_class_contains: str | list[str] = None,
-    text: str | list[str] = None,
-    text_contains: str | list[str] = None,
-    text_not: str | list[str] = None,
-    text_not_contains: str | list[str] = None,
+    id: str | list[str] | None = None,
+    name: str | list[str] | None = None,
+    css_class: str | list[str] | None = None,
+    css_class_contains: str | list[str] | None = None,
+    text: str | list[str] | None = None,
+    text_contains: str | list[str] | None = None,
+    text_not: str | list[str] | None = None,
+    text_not_contains: str | list[str] | None = None,
 ):
-    isinstance(id, str) and (id := [id])
-    isinstance(name, str) and (name := [name])
-    isinstance(css_class, str) and (css_class := [css_class])
-    isinstance(css_class_contains, str) and (css_class_contains := [css_class_contains])
-    isinstance(text, str) and (text := [text])
-    isinstance(text_contains, str) and (text_contains := [text_contains])
-    isinstance(text_not, str) and (text_not := [text_not])
-    isinstance(text_not_contains, str) and (text_not_contains := [text_not_contains])
+    if isinstance(id, str):
+        (id := [id])
+    if isinstance(name, str):
+        name = [name]
+    if isinstance(css_class, str):
+        css_class = [css_class]
+    if isinstance(css_class_contains, str):
+        css_class_contains = [css_class_contains]
+    if isinstance(text, str):
+        text = [text]
+    if isinstance(text_contains, str):
+        text_contains = [text_contains]
+    if isinstance(text_not, str):
+        text_not = [text_not]
+    if isinstance(text_not_contains, str):
+        text_not_contains = [text_not_contains]
 
-    xpath = "descendant::" + tag
+    xpath = axis + "::" + tag
 
-    args: list[list] = []
-    id and args.append([f"@id='{x}'" for x in id])
-    name and args.append([f"@name='{x}'" for x in name])
-    css_class and args.append([f"@class='{x}'" for x in css_class])
-    css_class_contains and args.append(
-        [f"contains(@class, '{x}')" for x in css_class_contains]
-    )
-    text and args.append([f"text()='{x}'" for x in text])
-    text_contains and args.append([f"contains(text(), '{x}')" for x in text_contains])
-    text_not and args.append([f"not(text()='{x}')" for x in text_not])
-    text_not_contains and args.append(
-        [f"not(contains(text(), '{x}'))" for x in text_not_contains]
-    )
+    args: list[list[str]] = []
+    if id is not None:
+        args.append([f"@id='{x}'" for x in id])
+    if name is not None:
+        args.append([f"@name='{x}'" for x in name])
+    if css_class is not None:
+        args.append([f"@class='{x}'" for x in css_class])
+    if css_class_contains is not None:
+        args.append([f"contains(@class, '{x}')" for x in css_class_contains])
+    if text is not None:
+        args.append([f"text()='{x}'" for x in text])
+    if text_contains is not None:
+        args.append([f"contains(text(), '{x}')" for x in text_contains])
+    if text_not is not None:
+        args.append([f"not(text()='{x}')" for x in text_not])
+    if text_not_contains is not None:
+        args.append([f"not(contains(text(), '{x}'))" for x in text_not_contains])
 
-    xpath += ("{}" if len(args) == 1 else "[{}]").format(
+    xpath += ("{}" if len(args) == 0 else "[{}]").format(
         " and ".join(
             ("{}" if len(arg) == 1 else "({})").format(" or ".join(arg)) for arg in args
         )
@@ -49,13 +75,13 @@ def get_xpath(
     return xpath
 
 
-def get_total_secs(str):
-    if "시간" in str:
-        return datetime.strptime(str, "%H시간 %M분 %S초").second
-    elif "분" in str:
-        return datetime.strptime(str, "%M분 %S초").second
+def get_total_secs(time_str: str):
+    if "시간" in time_str:
+        return datetime.strptime(time_str, "%H시간 %M분 %S초").second
+    elif "분" in time_str:
+        return datetime.strptime(time_str, "%M분 %S초").second
     else:
-        return datetime.strptime(str, "%S초").second
+        return datetime.strptime(time_str, "%S초").second
 
 
 def get_idpw(path="idpw.txt", encoding="utf-8"):
