@@ -7,7 +7,7 @@ import time
 
 
 def condition(tag="*", **kwargs):
-    """
+    """s
     [key]
 
     id, name, css_class, n, text, and other props

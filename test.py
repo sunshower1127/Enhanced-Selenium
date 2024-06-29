@@ -1,7 +1,7 @@
-# from models import ChromeDriver
+from models import ChromeDriver
 
-# driver = ChromeDriver(debug=True)
+driver = ChromeDriver(debug=True)
 
-# driver.get("https://www.google.com")
+driver.get("https://www.google.com")
 
-# driver.switch_to.new_window()
+driver.switch_to.new_window()
