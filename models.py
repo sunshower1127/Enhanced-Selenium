@@ -1,3 +1,4 @@
+import enum
 import time
 from typing import Literal
 import keyboard
@@ -28,7 +29,7 @@ class ChromeDriver(webdriver.Chrome):
             self.maximize_window()
         self.set_internal_wait()
 
-    def set_internal_wait(self, timeout=20, freq=0.5):
+    def set_internal_wait(self, timeout=20.0, freq=0.5):
         self.__wait = WebDriverWait(self, timeout=timeout, poll_frequency=freq)
 
     def wait(self, secs: float = 0.0, key: str = ""):
@@ -87,33 +88,49 @@ class ChromeDriver(webdriver.Chrome):
 
         return Element(self.find_element(By.XPATH, xpath))
 
-    # def find_all(
-    #     self,
-    #     tag="*",
-    #     id: str | list[str] | None = None,
-    #     name: str | list[str] = None,
-    #     css_class: str | list[str] = None,
-    #     css_class_contains: str | list[str] = None,
-    #     text: str | list[str] = None,
-    #     text_contains: str | list[str] = None,
-    #     text_not: str | list[str] = None,
-    #     text_not_contains: str | list[str] = None,
-    # ):
-    #     value = get_xpath(
-    #         tag,
-    #         id,
-    #         name,
-    #         css_class,
-    #         css_class_contains,
-    #         text,
-    #         text_contains,
-    #         text_not,
-    #         text_not_contains,
-    #     )
-    #     self.wait().until(EC.presence_of_all_elements_located((By.XPATH, value)))
-    #     return Elements(
-    #         [Element(element) for element in self.find_elements(By.XPATH, value)],
-    #     )
+    def find_all(
+        self,
+        axis: Literal[
+            "ancestor",
+            "ansestor-or-self",
+            "child",
+            "descendant",
+            "descendant-or-self",
+            "following",
+            "following-sibling",
+            "parent",
+            "preceding",
+            "preceding-sibling",
+        ] = "descendant",
+        tag="*",
+        id: str | list[str] | None = None,
+        name: str | list[str] | None = None,
+        css_class: str | list[str] | None = None,
+        css_class_contains: str | list[str] | None = None,
+        text: str | list[str] | None = None,
+        text_contains: str | list[str] | None = None,
+        text_not: str | list[str] | None = None,
+        text_not_contains: str | list[str] | None = None,
+        xpath: str | None = None,
+    ):
+        if xpath is None:
+            xpath = get_xpath(
+                axis,
+                tag,
+                id,
+                name,
+                css_class,
+                css_class_contains,
+                text,
+                text_contains,
+                text_not,
+                text_not_contains,
+            )
+
+        self.wait().until(EC.presence_of_all_elements_located((By.XPATH, xpath)))
+        return Elements(
+            [Element(element) for element in self.find_elements(By.XPATH, xpath)],
+        )
 
     def close_all(self):
         # quit이랑 비교해봐야함.
@@ -133,17 +150,16 @@ class ChromeDriver(webdriver.Chrome):
         elif name[0] == "parent":
             self.switch_to.parent_frame()
         else:
-            self.wait().until(EC.presence_of_element_located((By.NAME, name[0])))
-            self.switch_to.frame(name[0])
+            self.wait().until(EC.frame_to_be_available_and_switch_to_it(name[0]))
 
         if len(name) > 1:
             self.goto_frame(name[1:])
 
-    def goto_window(self, nth=1):
+    def goto_window(self, i=0):
         # 이건 근데 좀 고쳐보고 싶음
-        if len(self.window_handles) <= nth:
-            self.wait().until(EC.number_of_windows_to_be(nth))
-        self.switch_to.window(self.window_handles[nth - 1])
+        if len(self.window_handles) <= i + 1:
+            self.wait().until(EC.number_of_windows_to_be(i + 1))
+        self.switch_to.window(self.window_handles[i])
 
     def goto_alert(self):
         self.wait().until(EC.alert_is_present())
@@ -154,21 +170,56 @@ class ChromeDriver(webdriver.Chrome):
 
     def __debug_find(self, xpath: str):
         """모든 window와 frame을 탐색하면서 element를 찾는다."""
-        for handle in self.window_handles:
-            self.switch_to.window(handle)
-            for name in self.find_elements(By.TAG_NAME, "iframe"):
-                self.switch_to.frame(name)
-                try:
-                    self.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
-                    return xpath
-                except NoSuchElementException:
-                    pass
-                self.switch_to.default_content()
+        N = 10
+        answers: list[tuple[int, list[str]]] = []
+
+        _timeout = self.wait()._timeout
+        _poll = self.wait()._poll
+        self.set_internal_wait(1, 0.1)
+
+        def dfs():
             try:
-                self.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
-                return xpath
+                self.find(xpath=xpath)
+                answers.append((window_i, [*frame_path]))
             except NoSuchElementException:
                 pass
+
+            try:
+                iframe_names = self.find_all(tag="iframe").attributes("name")
+                for iframe_name in iframe_names:
+                    if iframe_name is None:
+                        continue
+                    self.goto_frame(iframe_name)
+                    frame_path.append(iframe_name)
+                    dfs()
+                    self.goto_frame("parent")
+                    frame_path.pop()
+            except NoSuchElementException:
+                return
+
+        for _ in range(N):
+            for window_i, window_handle in enumerate(self.window_handles):
+                frame_path: list[str] = ["default"]
+                self.switch_to.window(window_handle)
+                dfs()
+
+            if not answers:
+                continue
+
+            cur_window_outputs = []
+            other_window_outputs = []
+            for window, frame in answers:
+                output = ""
+                if window != self.window_handles.count(self.current_window_handle):
+                    output += f"driver.goto_window({window})\n"
+                output += f'driver.goto_frame("{'", "'.join(frame)}")\n'
+                if window == self.window_handles.count(self.current_window_handle):
+                    cur_window_outputs.append(output)
+                else:
+                    other_window_outputs.append(output)
+
+            # 여기서 부터 코딩하면 됨.
+
         raise NoSuchElementException(f"Element not found: {xpath}")
 
     # 1. switch_to -> alert, frame, window, active_element, default_content, parent_frame
@@ -288,6 +339,9 @@ class Elements:
             return [
                 element.send_keys(key) for element, key in zip(self.__elements, keys)
             ]
+
+    def attributes(self, name: str):
+        return [element.get_attribute(name) for element in self.__elements]
 
 
 class SeleniumDebugger:
