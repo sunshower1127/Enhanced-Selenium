@@ -19,7 +19,7 @@ def get_xpath(
         "preceding",
         "preceding-sibling",
     ] = "descendant",
-    tag: str = "*",
+    tag="*",
     id: str | list[str] | None = None,
     name: str | list[str] | None = None,
     css_class: str | list[str] | None = None,

@@ -1,4 +1,5 @@
 import time
+from typing import Literal
 import keyboard
 import subprocess
 from selenium import webdriver
@@ -39,6 +40,18 @@ class ChromeDriver(webdriver.Chrome):
 
     def find(
         self,
+        axis: Literal[
+            "ancestor",
+            "ansestor-or-self",
+            "child",
+            "descendant",
+            "descendant-or-self",
+            "following",
+            "following-sibling",
+            "parent",
+            "preceding",
+            "preceding-sibling",
+        ] = "descendant",
         tag="*",
         id: str | list[str] | None = None,
         name: str | list[str] | None = None,
@@ -52,6 +65,7 @@ class ChromeDriver(webdriver.Chrome):
     ):
         if xpath is None:
             xpath = get_xpath(
+                axis,
                 tag,
                 id,
                 name,
@@ -125,16 +139,17 @@ class ChromeDriver(webdriver.Chrome):
         if len(name) > 1:
             self.goto_frame(name[1:])
 
-    def goto_window(self, n=1):
+    def goto_window(self, nth=1):
         # 이건 근데 좀 고쳐보고 싶음
-        self.wait().until(EC.number_of_windows_to_be(n))
-        self.switch_to.window(self.window_handles[n - 1])
+        if len(self.window_handles) <= nth:
+            self.wait().until(EC.number_of_windows_to_be(nth))
+        self.switch_to.window(self.window_handles[nth - 1])
 
     def goto_alert(self):
         self.wait().until(EC.alert_is_present())
         return self.switch_to.alert
 
-    def goto_focused(self):
+    def goto_focused_element(self):
         return Element(self.switch_to.active_element)
 
     def __debug_find(self, xpath: str):
@@ -231,8 +246,10 @@ class Element(WebElement):
     #         [Element(element) for element in self.find_elements(By.XPATH, value)],
     #     )
 
-    def move_mouse(self):
-        ActionChains(self._parent).move_to_element(self).perform()
+    def move_mouse(self, offset_x=0, offset_y=0):
+        ActionChains(self._parent).move_to_element_with_offset(
+            self, offset_x, offset_y
+        ).perform()
         return self
 
     def click_by_mouse(self):
