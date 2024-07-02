@@ -1,4 +1,3 @@
-import enum
 import time
 from typing import Literal
 import keyboard
@@ -66,23 +65,23 @@ class ChromeDriver(webdriver.Chrome):
     ):
         if xpath is None:
             xpath = get_xpath(
-                axis,
-                tag,
-                id,
-                name,
-                css_class,
-                css_class_contains,
-                text,
-                text_contains,
-                text_not,
-                text_not_contains,
+                axis=axis,
+                tag=tag,
+                id=id,
+                name=name,
+                css_class=css_class,
+                css_class_contains=css_class_contains,
+                text=text,
+                text_contains=text_contains,
+                text_not=text_not,
+                text_not_contains=text_not_contains,
             )
 
         try:
             self.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
         except NoSuchElementException:
             if self.debug:
-                xpath = self.__debug_find(xpath)
+                self.__debug_find(xpath)
             else:
                 raise NoSuchElementException(f"Element not found: {xpath}")
 
@@ -115,19 +114,26 @@ class ChromeDriver(webdriver.Chrome):
     ):
         if xpath is None:
             xpath = get_xpath(
-                axis,
-                tag,
-                id,
-                name,
-                css_class,
-                css_class_contains,
-                text,
-                text_contains,
-                text_not,
-                text_not_contains,
+                axis=axis,
+                tag=tag,
+                id=id,
+                name=name,
+                css_class=css_class,
+                css_class_contains=css_class_contains,
+                text=text,
+                text_contains=text_contains,
+                text_not=text_not,
+                text_not_contains=text_not_contains,
             )
 
-        self.wait().until(EC.presence_of_all_elements_located((By.XPATH, xpath)))
+        try:
+            self.wait().until(EC.presence_of_all_elements_located((By.XPATH, xpath)))
+        except NoSuchElementException:
+            if self.debug:
+                self.__debug_find(xpath)
+            else:
+                raise NoSuchElementException(f"Element not found: {xpath}")
+
         return Elements(
             [Element(element) for element in self.find_elements(By.XPATH, xpath)],
         )
@@ -169,7 +175,10 @@ class ChromeDriver(webdriver.Chrome):
         return Element(self.switch_to.active_element)
 
     def __debug_find(self, xpath: str):
-        """모든 window와 frame을 탐색하면서 element를 찾는다."""
+        """
+        모든 window와 frame을 탐색하면서 element를 찾는다.
+        찾으면 window와 frame을 이동해줌.
+        """
         N = 10
         answers: list[tuple[int, list[str]]] = []
 
@@ -206,8 +215,8 @@ class ChromeDriver(webdriver.Chrome):
             if not answers:
                 continue
 
-            cur_window_outputs = []
-            other_window_outputs = []
+            cur_window_outputs: list[str] = []
+            other_window_outputs: list[str] = []
             for window, frame in answers:
                 output = ""
                 if window != self.window_handles.count(self.current_window_handle):
@@ -219,8 +228,48 @@ class ChromeDriver(webdriver.Chrome):
                     other_window_outputs.append(output)
 
             # 여기서 부터 코딩하면 됨.
+            outputs = cur_window_outputs + other_window_outputs
+            print(f"ES Debugger: Element found in the following context\n{xpath=}")
+            for i, output in enumerate(outputs):
+                print(f"#{i + 1}")
+                print(output)
 
-        raise NoSuchElementException(f"Element not found: {xpath}")
+            self.set_internal_wait(_timeout, _poll)
+            user_input = input(
+                "ES Debugger: Select the context you want to use [1, 2, ...] / [N]o"
+            )
+            while user_input.lower() not in [
+                str(i) for i in range(1, len(outputs) + 1)
+            ] + ["n"]:
+                user_input = input()
+            if user_input.lower() == "n":
+                raise NoSuchElementException()
+
+            user_input = int(user_input)
+            user_output = outputs[user_input - 1]
+
+            def extract_between(text, start, end):
+                start_index = text.find(start)
+                if start_index == -1:
+                    return ""  # 시작 문자열이 없으면 빈 문자열 반환
+                start_index += len(start)  # 시작 문자열의 끝으로 인덱스 이동
+
+                end_index = text.find(end, start_index)
+                if end_index == -1:
+                    return ""  # 종료 문자열이 없으면 빈 문자열 반환
+
+                return text[start_index:end_index]
+
+            if (window_str := extract_between(user_output, "window(", ")")) != "":
+                self.goto_window(int(window_str))
+
+            if (frame_str := extract_between(user_output, 'frame("', '")')) != "":
+                self.goto_frame(frame_str.split('", "'))
+
+            return
+
+        self.set_internal_wait(_timeout, _poll)
+        raise NoSuchElementException(f"ES Debugger: Element not found\n{xpath=}")
 
     # 1. switch_to -> alert, frame, window, active_element, default_content, parent_frame
     # 얘네들을 어떻게 해야할지. -> 후처리 같은거 -> 일단 세세한 기능들 한 번 알아봐야할듯.
@@ -243,59 +292,107 @@ class Element(WebElement):
         self.driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
         return Element(self.find_element(By.XPATH, xpath))
 
-    # def find(
-    #     self,
-    #     tag="*",
-    #     id: str | list[str] = None,
-    #     name: str | list[str] = None,
-    #     css_class: str | list[str] = None,
-    #     css_class_contains: str | list[str] = None,
-    #     text: str | list[str] = None,
-    #     text_contains: str | list[str] = None,
-    #     text_not: str | list[str] = None,
-    #     text_not_contains: str | list[str] = None,
-    # ):
-    #     value = get_xpath(
-    #         tag,
-    #         id,
-    #         name,
-    #         css_class,
-    #         css_class_contains,
-    #         text,
-    #         text_contains,
-    #         text_not,
-    #         text_not_contains,
-    #     )
-    #     self.driver.wait().until(EC.presence_of_element_located((By.XPATH, value)))
-    #     return Element(self.find_element(By.XPATH, value))
+    def find(
+        self,
+        axis: Literal[
+            "ancestor",
+            "ansestor-or-self",
+            "child",
+            "descendant",
+            "descendant-or-self",
+            "following",
+            "following-sibling",
+            "parent",
+            "preceding",
+            "preceding-sibling",
+        ] = "descendant",
+        tag="*",
+        id: str | list[str] | None = None,
+        name: str | list[str] | None = None,
+        css_class: str | list[str] | None = None,
+        css_class_contains: str | list[str] | None = None,
+        text: str | list[str] | None = None,
+        text_contains: str | list[str] | None = None,
+        text_not: str | list[str] | None = None,
+        text_not_contains: str | list[str] | None = None,
+        xpath: str | None = None,
+    ):
+        if xpath is None:
+            xpath = get_xpath(
+                axis=axis,
+                tag=tag,
+                id=id,
+                name=name,
+                css_class=css_class,
+                css_class_contains=css_class_contains,
+                text=text,
+                text_contains=text_contains,
+                text_not=text_not,
+                text_not_contains=text_not_contains,
+            )
 
-    # def find_all(
-    #     self,
-    #     tag="*",
-    #     id: str | list[str] = None,
-    #     name: str | list[str] = None,
-    #     css_class: str | list[str] = None,
-    #     css_class_contains: str | list[str] = None,
-    #     text: str | list[str] = None,
-    #     text_contains: str | list[str] = None,
-    #     text_not: str | list[str] = None,
-    #     text_not_contains: str | list[str] = None,
-    # ):
-    #     value = get_xpath(
-    #         tag,
-    #         id,
-    #         name,
-    #         css_class,
-    #         css_class_contains,
-    #         text,
-    #         text_contains,
-    #         text_not,
-    #         text_not_contains,
-    #     )
-    #     self.driver.wait().until(EC.presence_of_all_elements_located((By.XPATH, value)))
-    #     return Elements(
-    #         [Element(element) for element in self.find_elements(By.XPATH, value)],
-    #     )
+        try:
+            self.driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
+        except NoSuchElementException:
+            if self.driver.debug:
+                self.driver.__debug_find(xpath)
+            else:
+                raise NoSuchElementException(f"Element not found: {xpath}")
+
+        return Element(self.find_element(By.XPATH, xpath))
+
+    def find_all(
+        self,
+        axis: Literal[
+            "ancestor",
+            "ansestor-or-self",
+            "child",
+            "descendant",
+            "descendant-or-self",
+            "following",
+            "following-sibling",
+            "parent",
+            "preceding",
+            "preceding-sibling",
+        ] = "descendant",
+        tag="*",
+        id: str | list[str] | None = None,
+        name: str | list[str] | None = None,
+        css_class: str | list[str] | None = None,
+        css_class_contains: str | list[str] | None = None,
+        text: str | list[str] | None = None,
+        text_contains: str | list[str] | None = None,
+        text_not: str | list[str] | None = None,
+        text_not_contains: str | list[str] | None = None,
+        xpath: str | None = None,
+    ):
+        if xpath is None:
+            xpath = get_xpath(
+                axis=axis,
+                tag=tag,
+                id=id,
+                name=name,
+                css_class=css_class,
+                css_class_contains=css_class_contains,
+                text=text,
+                text_contains=text_contains,
+                text_not=text_not,
+                text_not_contains=text_not_contains,
+            )
+
+        try:
+            self.driver.wait().until(
+                EC.presence_of_all_elements_located((By.XPATH, xpath))
+            )
+        except NoSuchElementException:
+            if self.driver.debug:
+                self.driver.__debug_find(xpath)
+            else:
+                raise NoSuchElementException(f"Element not found: {xpath}")
+
+        return Elements(
+            [Element(element) for element in self.find_elements(By.XPATH, xpath)],
+        )
 
     def move_mouse(self, offset_x=0, offset_y=0):
         ActionChains(self._parent).move_to_element_with_offset(
@@ -315,19 +412,91 @@ class Element(WebElement):
 class Elements:
     def __init__(self, elements: list[Element]):
         self.__elements = elements
+        self.__index = 0
         self.texts = [element.text for element in self.__elements]
 
-    def parent(self, levels=1):
-        return [element.parent(levels) for element in self.__elements]
-
-    def get(self, index=0):
+    def __getitem__(self, index):
         return self.__elements[index]
 
-    def get_all(self):
-        return self.__elements
+    def __iter__(self):
+        self.__index = 0
+        return self
 
-    # def find(self):
-    #     return [element.find() for element in self.__elements]
+    def __next__(self):
+        if self.__index < len(self.__elements):
+            result = self.__elements[self.__index]
+            self.__index += 1
+            return result
+        else:
+            raise StopIteration
+
+    def parents(self, levels=1, partial=False):
+        if not partial:
+            return Elements([element.parent(levels) for element in self.__elements])
+
+        result: list[Element] = []
+        for element in self.__elements:
+            try:
+                result.append(element.parent(levels))
+            except NoSuchElementException:
+                pass
+        return Elements(result)
+
+    def find(
+        self,
+        axis: Literal[
+            "ancestor",
+            "ansestor-or-self",
+            "child",
+            "descendant",
+            "descendant-or-self",
+            "following",
+            "following-sibling",
+            "parent",
+            "preceding",
+            "preceding-sibling",
+        ] = "descendant",
+        tag="*",
+        id: str | list[str] | None = None,
+        name: str | list[str] | None = None,
+        css_class: str | list[str] | None = None,
+        css_class_contains: str | list[str] | None = None,
+        text: str | list[str] | None = None,
+        text_contains: str | list[str] | None = None,
+        text_not: str | list[str] | None = None,
+        text_not_contains: str | list[str] | None = None,
+        xpath: str | None = None,
+        partial=False,
+    ):
+        if xpath is None:
+            xpath = get_xpath(
+                axis=axis,
+                tag=tag,
+                id=id,
+                name=name,
+                css_class=css_class,
+                css_class_contains=css_class_contains,
+                text=text,
+                text_contains=text_contains,
+                text_not=text_not,
+                text_not_contains=text_not_contains,
+            )
+
+        if not partial:
+            return Elements([element.find(xpath=xpath) for element in self.__elements])
+
+        result: list[Element] = []
+        try:
+            result.append(self.__elements[0].find(xpath=xpath))
+        except NoSuchElementException:
+            pass
+
+        for element in self.__elements[1:]:
+            try:
+                result.append(Element(element.find_element(By.XPATH, xpath)))
+            except NoSuchElementException:
+                pass
+        return Elements(result)
 
     def click(self):
         return [element.click() for element in self.__elements]
@@ -340,7 +509,10 @@ class Elements:
                 element.send_keys(key) for element, key in zip(self.__elements, keys)
             ]
 
-    def attributes(self, name: str):
+    def attributes(
+        self,
+        name: str,
+    ):
         return [element.get_attribute(name) for element in self.__elements]
 
 
@@ -351,19 +523,19 @@ class SeleniumDebugger:
                 "python " + path, shell=True, text=True, capture_output=True
             )
             if result.returncode == 0:
-                print("Selenium Debugger: Program executed successfully")
-                break
+                print("ES Debugger: Program executed successfully")
             else:
-                print("Selenium Debugger: Program failed to execute")
+                print("ES Debugger: Program failed to execute")
                 print(result.stderr)
-                user_input = input(
-                    "Selenium Debugger: Do you want to retry? [R]etry / [Q]uit"
-                )
-                while user_input.lower() not in ["r", "q"]:
-                    user_input = input()
-                if user_input.lower() != "r":
-                    break
+
+            user_input = input("ES Debugger: Do you want to retry? [R]etry / [Q]uit")
+            while user_input.lower() not in ["r", "q"]:
+                user_input = input()
+            if user_input.lower() != "r":
+                break
 
 
-class SeleniumReleaser:
-    pass
+class SeleniumBuilder:
+    # 1. tkinter를 활용해서 GUI 구축
+    # 2. 빌드 기능
+    ...
