@@ -10,7 +10,7 @@ from datetime import datetime
 def get_xpath(
     axis: Literal[
         "ancestor",
-        "ansestor-or-self",
+        "ancestor-or-self",
         "child",
         "descendant",
         "descendant-or-self",
