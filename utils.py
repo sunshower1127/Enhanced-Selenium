@@ -1,9 +1,10 @@
-from typing import Literal
-
 # import numpy as np
 # import cv2 as cv
 # from pytesseract import image_to_string
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Literal
 
 
 # 테스트 통과
@@ -30,22 +31,17 @@ def get_xpath(
     text_not: str | list[str] | None = None,
     text_not_contains: str | list[str] | None = None,
 ):
-    if isinstance(id, str):
-        (id := [id])
-    if isinstance(name, str):
-        name = [name]
-    if isinstance(css_class, str):
-        css_class = [css_class]
-    if isinstance(css_class_contains, str):
-        css_class_contains = [css_class_contains]
-    if isinstance(text, str):
-        text = [text]
-    if isinstance(text_contains, str):
-        text_contains = [text_contains]
-    if isinstance(text_not, str):
-        text_not = [text_not]
-    if isinstance(text_not_contains, str):
-        text_not_contains = [text_not_contains]
+    def ensure_list(value):
+        return [value] if isinstance(value, str) else value
+
+    id = ensure_list(id)  # noqa: A001
+    name = ensure_list(name)
+    css_class = ensure_list(css_class)
+    css_class_contains = ensure_list(css_class_contains)
+    text = ensure_list(text)
+    text_contains = ensure_list(text_contains)
+    text_not = ensure_list(text_not)
+    text_not_contains = ensure_list(text_not_contains)
 
     xpath = axis + "::" + tag
 
@@ -77,17 +73,24 @@ def get_xpath(
 
 
 def get_total_secs(time_str: str):
+    total_seconds = 0
     if "시간" in time_str:
-        return datetime.strptime(time_str, "%H시간 %M분 %S초").second
+        parsed_time = datetime.strptime(time_str, "%H시간 %M분 %S초").astimezone()
+        total_seconds = (
+            parsed_time.hour * 3600 + parsed_time.minute * 60 + parsed_time.second
+        )
     elif "분" in time_str:
-        return datetime.strptime(time_str, "%M분 %S초").second
+        parsed_time = datetime.strptime(time_str, "%M분 %S초").astimezone()
+        total_seconds = parsed_time.minute * 60 + parsed_time.second
     else:
-        return datetime.strptime(time_str, "%S초").second
+        parsed_time = datetime.strptime(time_str, "%S초").astimezone()
+        total_seconds = parsed_time.second
+    return total_seconds
 
 
 def get_idpw(path="idpw.txt", encoding="utf-8"):
-    with open(path, "r", encoding=encoding) as file:
-        id = file.readline().strip()
+    with open(path, encoding=encoding) as file:
+        id = file.readline().strip()  # noqa: A001
         pw = file.readline().strip()
     return id, pw
 

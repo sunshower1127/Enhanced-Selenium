@@ -1,5 +1,8 @@
-from models import debugger
+from contextlib import suppress
 
-debugger.start()
+List = []
+for i in range(10):
+    with suppress(Exception):
+        List.append(10 / i)
 
-debugger.breakpoint()
+print(List)

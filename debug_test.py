@@ -1,4 +1,8 @@
-from models import EnhancedSeleniumDebugger
+from models.chrome_driver import ChromeDriver
+from models.debugger import debugger
 
-debugger = EnhancedSeleniumDebugger(path="test.py")
-debugger.run()
+debugger.run(__file__)
+
+driver = ChromeDriver()
+
+debugger.close()
