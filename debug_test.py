@@ -3,6 +3,6 @@ from models.debugger import debugger
 
 debugger.run(__file__)
 
-driver = ChromeDriver()
+driver = ChromeDriver(info_bar=False, popup=False)
 
 debugger.close()

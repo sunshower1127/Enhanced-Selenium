@@ -4,6 +4,8 @@ import sys
 
 
 class _EnhancedSeleniumDebugger:
+    QUIT_CODE = 2
+
     def run(self, path: str):
         """
         debugger.run(__file__)
@@ -13,18 +15,18 @@ class _EnhancedSeleniumDebugger:
             return
 
         os.environ["ES_DEBUG"] = "1"
-        print("OK")
         while True:
             process = subprocess.Popen(
                 [sys.executable, path],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdin=sys.stdin,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             )
-            stdout, stderr = process.communicate()
+            process.wait()
 
             if process.returncode != 0:
-                sys.exit(1)
+                print("The ES Debugger has terminated.")
+                sys.exit(0)
 
     def breakpoint(self):
         user_input = input(
@@ -38,7 +40,7 @@ class _EnhancedSeleniumDebugger:
         elif user_input == "r":
             sys.exit(0)
         elif user_input == "q":
-            sys.exit(1)
+            sys.exit(self.QUIT_CODE)
 
     def close(self):
         user_input = input("ES Debugger: End of the script. [R]etry / [Q]uit: ")
@@ -48,7 +50,7 @@ class _EnhancedSeleniumDebugger:
         if user_input == "r":
             sys.exit(0)
         elif user_input == "q":
-            sys.exit(1)
+            sys.exit(self.QUIT_CODE)
 
 
 debugger = _EnhancedSeleniumDebugger()

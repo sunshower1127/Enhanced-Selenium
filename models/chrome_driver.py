@@ -5,14 +5,13 @@ import time
 from typing import Literal
 
 import keyboard
+from models.element import Element, Elements
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from utils import get_xpath
-
-from models.element import Element, Elements
 
 
 class ChromeDriver(webdriver.Chrome):
@@ -24,6 +23,7 @@ class ChromeDriver(webdriver.Chrome):
         maximize=True,
         headless=False,
         popup=True,
+        info_bar=True,
     ):
         self.debug = os.environ.get("ES_DEBUG") == "1"
         options = webdriver.ChromeOptions()
@@ -37,6 +37,8 @@ class ChromeDriver(webdriver.Chrome):
             options.add_argument("--headless")
         if not popup:
             options.add_argument("--disable-popup-blocking")
+        if not info_bar:
+            options.add_argument("--disable-infobars")
 
         super().__init__(options=options)
         self.implicitly_wait()
@@ -95,7 +97,7 @@ class ChromeDriver(webdriver.Chrome):
             )
 
         try:
-            self.wait().until(ec.presence_of_element_located((By.XPATH, xpath)))
+            self.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
         except NoSuchElementException:
             if self.debug:
                 self._debug_find(xpath)
@@ -146,7 +148,7 @@ class ChromeDriver(webdriver.Chrome):
             )
 
         try:
-            self.wait().until(ec.presence_of_all_elements_located((By.XPATH, xpath)))
+            self.wait().until(EC.presence_of_all_elements_located((By.XPATH, xpath)))
         except NoSuchElementException:
             if self.debug:
                 self._debug_find(xpath)
@@ -172,18 +174,18 @@ class ChromeDriver(webdriver.Chrome):
         elif name[0] == "parent":
             self.switch_to.parent_frame()
         else:
-            self.wait().until(ec.frame_to_be_available_and_switch_to_it(name[0]))
+            self.wait().until(EC.frame_to_be_available_and_switch_to_it(name[0]))
 
         if len(name) > 1:
             self.goto_frame(name[1:])
 
     def goto_window(self, i=0):
         if i >= len(self.window_handles):
-            self.wait().until(ec.number_of_windows_to_be(i + 1))
+            self.wait().until(EC.number_of_windows_to_be(i + 1))
         self.switch_to.window(self.window_handles[i])
 
     def goto_alert(self):
-        self.wait().until(ec.alert_is_present())
+        self.wait().until(EC.alert_is_present())
         return self.switch_to.alert
 
     def goto_focused_element(self):
