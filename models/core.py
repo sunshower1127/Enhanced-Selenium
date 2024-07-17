@@ -18,6 +18,7 @@ from utils import get_xpath
 
 
 class Findable:
+    # From Other Classes
     _driver: ChromeDriver
     find_element: Callable[[str, str], WebElement]
     find_elements: Callable[[str, str], list[WebElement]]
