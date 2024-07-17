@@ -24,7 +24,17 @@ class _EnhancedSeleniumDebugger:
             )
             process.wait()
 
-            if process.returncode != 0:
+            if process.returncode == 1:
+                user_input = input("ES Debugger: An error occurred. [R]etry / [Q]uit: ")
+                while user_input.lower() not in ["r", "q"]:
+                    user_input = input()
+                user_input = user_input.lower()
+                if user_input == "r":
+                    continue
+
+                sys.exit(1)
+
+            elif process.returncode == self.QUIT_CODE:
                 print("The ES Debugger has terminated.")
                 sys.exit(0)
 

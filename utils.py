@@ -9,6 +9,7 @@ from typing import Literal
 
 # 테스트 통과
 def get_xpath(
+    *,
     axis: Literal[
         "ancestor",
         "ancestor-or-self",
@@ -30,6 +31,7 @@ def get_xpath(
     text_contains: str | list[str] | None = None,
     text_not: str | list[str] | None = None,
     text_not_contains: str | list[str] | None = None,
+    **kwargs: str | list[str],
 ):
     def ensure_list(value):
         return [value] if isinstance(value, str) else value
@@ -42,6 +44,8 @@ def get_xpath(
     text_contains = ensure_list(text_contains)
     text_not = ensure_list(text_not)
     text_not_contains = ensure_list(text_not_contains)
+    for key, value in kwargs.items():
+        kwargs[key] = ensure_list(value)
 
     xpath = axis + "::" + tag
 
@@ -62,6 +66,8 @@ def get_xpath(
         args.append([f"not(text()='{x}')" for x in text_not])
     if text_not_contains is not None:
         args.append([f"not(contains(text(), '{x}'))" for x in text_not_contains])
+    for key, value in kwargs.items():
+        args.append([f"@{key}='{x}'" for x in value])
 
     xpath += ("{}" if len(args) == 0 else "[{}]").format(
         " and ".join(
