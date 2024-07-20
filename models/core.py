@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Callable, Literal
+from functools import wraps
+from typing import Callable, Literal, Self
 
 import keyboard
 from selenium import webdriver
@@ -209,19 +210,51 @@ class ChromeDriver(webdriver.Chrome, Findable):
     def goto_focused_element(self):
         return Element(self.switch_to.active_element)
 
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            print(f"디버거 : {args[0]} 검색 시작.")
+            _timeout = self.wait()._timeout
+            _poll = self.wait()._poll
+            self.implicitly_wait(1, 0.1)
+            self.debug = False
+            _window_handle = self.current_window_handle
+
+            result = func(self, xpath)
+
+            self.implicitly_wait(_timeout, _poll)
+            self.debug = True
+            self.switch_to.window(_window_handle)
+            self.switch_to.default_content()
+
+            print(result)
+            print(f"디버거 : {xpath=} 검색 완료.")
+            return result
+
+        return wrapper
+
     def _debug_find(self, xpath: str):
         """
         모든 window와 frame을 탐색하면서 element를 찾는다.
         찾으면 window와 frame을 이동해줌.
         """
-        print("find 디버거 작동 시작")
+        
         N = 10
         answers: list[tuple[int, list[str]]] = []
-        _timeout = self.wait()._timeout
-        _poll = self.wait()._poll
-        self.implicitly_wait(1, 0.1)
-        self.debug = False
-        print("1")
+
+        def setup_env():
+            print(f"디버거 : {xpath=} 검색 시작.")
+            timeout = self.wait()._timeout
+            poll = self.wait()._poll
+            self.implicitly_wait(1, 0.1)
+            self.debug = False
+            window_handle = self.current_window_handle
+            return (timeout, poll, window_handle)
+        
+        def find():
+            
+
+        
+        
 
         def dfs():
             try:
@@ -241,8 +274,6 @@ class ChromeDriver(webdriver.Chrome, Findable):
                     self.goto_frame("parent")
                     frame_path.pop()
             except Exception:
-                self.implicitly_wait(_timeout, _poll)
-                self.debug = True
                 return
 
         for _ in range(N):
@@ -272,8 +303,6 @@ class ChromeDriver(webdriver.Chrome, Findable):
                 print(f"#{i + 1}")
                 print(output)
 
-            self.implicitly_wait(_timeout, _poll)
-            self.debug = True
             user_input = input(
                 "ES Debugger: Select the context you want to use [1, 2, ...] / [N]o "
             )
@@ -282,8 +311,6 @@ class ChromeDriver(webdriver.Chrome, Findable):
             ] + ["n"]:
                 user_input = input()
             if user_input.lower() == "n":
-                self.implicitly_wait(_timeout, _poll)
-                self.debug = True
                 raise NoSuchElementException
 
             user_input = int(user_input)
@@ -306,12 +333,9 @@ class ChromeDriver(webdriver.Chrome, Findable):
 
             if (frame_str := extract_between(user_output, 'frame("', '")')) != "":
                 self.goto_frame(frame_str.split('", "'))
-            self.implicitly_wait(_timeout, _poll)
-            self.debug = True
+
             return
 
-        self.implicitly_wait(_timeout, _poll)
-        self.debug = True
         # 디버거 에러처리 -> 다시 시작? 물어보고, 물어봤으면 quit해주고 exit.
         # raise NoSuchElementException(f"ES Debugger: Element not found\n{xpath=}")
 
@@ -344,7 +368,9 @@ class Element(WebElement, Findable):
                 ActionChains(self._parent).click(self).perform()
 
     def select(
-        self, by: Literal["index", "value", "text"] = "index", value: str | int = 0
+        self,
+        by: Literal["index", "value", "text"] = "index",
+        value: str | int = 0,
     ):
         select = Select(self)
         match by:
