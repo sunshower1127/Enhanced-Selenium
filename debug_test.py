@@ -8,13 +8,6 @@ driver = ChromeDriver()
 
 driver.get("https://www.google.com")
 driver.wait(10)
-print(get_xpath(title="검색"))
-driver._debug_find(get_xpath(title="검색"))
+driver.find(text="temp").send_keys("Hello, World!")
 
-"""
-
-
-
-
-
-"""
+debugger.close()

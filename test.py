@@ -1,8 +1,18 @@
-from contextlib import suppress
+import keyboard
+from models.core import ChromeDriver
+from models.debugger import debugger
+from utils import get_xpath
 
-List = []
-for i in range(10):
-    with suppress(Exception):
-        List.append(10 / i)
+debugger.run(__file__)
 
-print(List)
+driver = ChromeDriver()
+
+driver.get("https://www.google.com")
+
+driver.implicitly_wait(3)
+keyboard.wait("esc")
+
+for i, window in enumerate(driver.window_handles):
+    print(f"Window {i}: {window}")
+    driver.switch_to.window(window)
+    print(driver.find(get_xpath(title="검색")))

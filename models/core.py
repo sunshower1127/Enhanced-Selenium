@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+from collections import namedtuple
 from typing import Callable, Literal
 
 import keyboard
@@ -16,9 +17,12 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.wait import WebDriverWait
 from utils import get_xpath
 
+# --------------------------------------------------------------------------------------
 
+
+# Interface for find, find_all
 class Findable:
-    # From Other Classes
+    # From other classes
     _driver: ChromeDriver
     find_element: Callable[[str, str], WebElement]
     find_elements: Callable[[str, str], list[WebElement]]
@@ -69,7 +73,7 @@ class Findable:
             self._driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
         except TimeoutException as e:
             if self._driver.debug:
-                self._driver._debug_find(xpath)
+                self._driver._debugfinder.find(xpath)
             else:
                 msg = f"Element not found: {xpath}"
                 raise NoSuchElementException(msg) from e
@@ -124,7 +128,7 @@ class Findable:
             )
         except TimeoutException as e:
             if self._driver.debug:
-                self._driver._debug_find(xpath)
+                self._driver._debugfinder.find(xpath)
             else:
                 msg = f"Element not found: {xpath}"
                 raise NoSuchElementException(msg) from e
@@ -132,6 +136,112 @@ class Findable:
         return Elements(
             [Element(element) for element in self.find_elements(By.XPATH, xpath)],
         )
+
+
+# --------------------------------------------------------------------------------------
+
+
+# for debug_find
+class DebugFinder:
+    def __init__(self, driver: ChromeDriver):
+        self.driver = driver
+        self.answers = []
+        self.Env = namedtuple("Env", ["timeout", "poll", "win_h"])
+
+    def setup_env(self):
+        timeout = self.driver.wait()._timeout
+        poll = self.driver.wait()._poll
+        self.driver.implicitly_wait(1, 0.1)
+        self.driver.debug = False
+        win_h = self.driver.current_window_handle
+        self.env = self.Env(timeout, poll, win_h)
+
+    def restore_env(self):
+        timeout, poll, win_h = self.env
+        self.driver.implicitly_wait(timeout, poll)
+        self.driver.debug = True
+        self.driver.switch_to.window(win_h)
+        self.driver.switch_to.default_content()
+
+    def find(self, xpath: str, N=10):
+        self.setup_env()
+        answers = []
+
+        for _ in range(N):
+            for win_i, win_h in enumerate(self.driver.window_handles):
+                frame_path: list[str] = ["default"]
+                self.driver.switch_to.window(win_h)
+                self._dfs(answers, xpath, win_i, frame_path)
+
+            if answers:
+                break
+
+        if not answers:
+            raise NoSuchElementException
+        print(f"ES Debugger: Element found in the following context\n{xpath=}")
+        print(self._get_message(answers))
+
+        if (
+            user_input := self._get_user_input(
+                "ES Debugger: Select the context you want to use [1, 2, ...] / [N]o :",
+                len(answers),
+            )
+        ) == "n":
+            raise NoSuchElementException
+
+        user_input = int(user_input)
+        win_i, frame = answers[user_input - 1]
+        self.driver.goto_window(win_i)
+        self.driver.goto_frame(frame)
+
+        self.restore_env()
+
+    def _dfs(self, answers, xpath, win_i, frame_path):
+        # find element
+        try:
+            self.driver.find(xpath)
+            answers.append((win_i, [*frame_path]))
+        except:
+            print("element 못찾음")
+
+        # find iframe
+        try:
+            iframe_names = self.driver.find_all(tag="iframe").attributes("name")
+            for iframe_name in iframe_names:
+                if iframe_name is None:
+                    continue
+                self.driver.goto_frame(iframe_name)
+                frame_path.append(iframe_name)
+                self._dfs(answers, xpath, win_i, frame_path)
+                self.driver.goto_frame("parent")
+                frame_path.pop()
+        except:
+            print("iframe 못찾음")
+
+    def _get_message(self, answers):
+        cur_window_outputs: list[str] = []
+        other_window_outputs: list[str] = []
+        for window, frame in answers:
+            output = ""
+            if window != self.driver.window_handles.index(self.env.win_h):
+                output += f"driver.goto_window({window})\n"
+            output += f'driver.goto_frame("{'", "'.join(frame)}")\n'
+            if window == self.driver.window_handles.index(self.env.win_h):
+                cur_window_outputs.append(output)
+            else:
+                other_window_outputs.append(output)
+
+        outputs = cur_window_outputs + other_window_outputs
+        return "\n".join(f"#{i + 1}\n{output}" for i, output in enumerate(outputs))
+
+    def _get_user_input(self, message, n):
+        user_input = input(message)
+        while user_input.lower() not in [str(i) for i in range(1, n + 1)] + ["n"]:
+            user_input = input()
+        return user_input.lower()
+
+
+# --------------------------------------------------------------------------------------
 
 
 class ChromeDriver(webdriver.Chrome, Findable):
@@ -163,19 +273,23 @@ class ChromeDriver(webdriver.Chrome, Findable):
         super().__init__(options=options)
         self.implicitly_wait()
         self._driver = self
+        self._debugfinder = DebugFinder(self)
 
     def __del__(self):
         self.quit()
 
     def implicitly_wait(self, timeout=20.0, freq=0.5):
-        self.__wait = WebDriverWait(self, timeout=timeout, poll_frequency=freq)
+        self._wait = WebDriverWait(self, timeout=timeout, poll_frequency=freq)
 
     def wait(self, secs: float = 0.0, key: str = ""):
         if secs:
             time.sleep(secs)
         if key:
             keyboard.wait(key)
-        return self.__wait
+        return self._wait
+
+    def add_key_listener(self, key: str, callback: Callable):
+        keyboard.add_hotkey(key, callback)
 
     def close_all(self):
         # quit이랑 비교해봐야함.
@@ -198,6 +312,9 @@ class ChromeDriver(webdriver.Chrome, Findable):
             self.goto_frame(name[1:])
 
     def goto_window(self, i=0):
+        """
+        i가 실제 window의 순서와 다를 수 있음.
+        """
         if i >= len(self.window_handles):
             self.wait().until(EC.number_of_windows_to_be(i + 1))
         self.switch_to.window(self.window_handles[i])
@@ -209,122 +326,8 @@ class ChromeDriver(webdriver.Chrome, Findable):
     def goto_focused_element(self):
         return Element(self.switch_to.active_element)
 
-    def _debug_find(self, xpath: str):
-        """
-        모든 window와 frame을 탐색하면서 element를 찾는다.
-        찾으면 window와 frame을 이동해줌.
-        """
 
-        N = 10
-        answers: list[tuple[int, list[str]]] = []
-
-        def setup_env():
-            print(f"디버거 : {xpath=} 검색 시작.")
-            timeout = self.wait()._timeout
-            poll = self.wait()._poll
-            self.implicitly_wait(1, 0.1)
-            self.debug = False
-            window_handle = self.current_window_handle
-            return (timeout, poll, window_handle)
-
-        def restore_env(env):
-            timeout, poll, window_handle = env
-            self.implicitly_wait(timeout, poll)
-            self.debug = True
-            self.switch_to.window(window_handle)
-            self.switch_to.default_content()
-            print(f"디버거 : {xpath=} 검색 완료.")
-
-        def dfs(window_i, frame_path):
-            try:
-                self.find(xpath=xpath)
-                answers.append((window_i, [*frame_path]))
-            except Exception:
-                pass
-
-            try:
-                iframe_names = self.find_all(tag="iframe").attributes("name")
-                for iframe_name in iframe_names:
-                    if iframe_name is None:
-                        continue
-                    self.goto_frame(iframe_name)
-                    frame_path.append(iframe_name)
-                    dfs(window_i, frame_path)
-                    self.goto_frame("parent")
-                    frame_path.pop()
-            except Exception:
-                return
-
-        def main():
-            for _ in range(N):
-                for window_i, window_handle in enumerate(self.window_handles):  # noqa: B007
-                    frame_path: list[str] = ["default"]
-                    self.switch_to.window(window_handle)
-                    dfs(window_i, frame_path)
-
-                if not answers:
-                    continue
-
-                cur_window_outputs: list[str] = []
-                other_window_outputs: list[str] = []
-                for window, frame in answers:
-                    output = ""
-                    if window != self.window_handles.count(env[2]):
-                        output += f"driver.goto_window({window})\n"
-                    output += f'driver.goto_frame("{'", "'.join(frame)}")\n'
-                    if window == self.window_handles.count(env[2]):
-                        cur_window_outputs.append(output)
-                    else:
-                        other_window_outputs.append(output)
-
-                outputs = cur_window_outputs + other_window_outputs
-                print(f"ES Debugger: Element found in the following context\n{xpath=}")
-                for i, output in enumerate(outputs):
-                    print(f"#{i + 1}")
-                    print(output)
-
-                user_input = input(
-                    "ES Debugger: Select the context you want to use [1, 2, ...] / [N]o :"
-                )
-                while user_input.lower() not in [
-                    str(i) for i in range(1, len(outputs) + 1)
-                ] + ["n"]:
-                    user_input = input()
-                if user_input.lower() == "n":
-                    # 에러
-                    raise NoSuchElementException
-
-                user_input = int(user_input)
-                user_output = outputs[user_input - 1]
-
-                def extract_between(text, start, end):
-                    start_index = text.find(start)
-                    if start_index == -1:
-                        return ""  # 시작 문자열이 없으면 빈 문자열 반환
-                    start_index += len(start)  # 시작 문자열의 끝으로 인덱스 이동
-
-                    end_index = text.find(end, start_index)
-                    if end_index == -1:
-                        return ""  # 종료 문자열이 없으면 빈 문자열 반환
-
-                    return text[start_index:end_index]
-
-                if (window_str := extract_between(user_output, "window(", ")")) != "":
-                    self.goto_window(int(window_str))
-
-                if (frame_str := extract_between(user_output, 'frame("', '")')) != "":
-                    self.goto_frame(frame_str.split('", "'))
-
-                return
-
-        # 디버거 에러처리 -> 다시 시작? 물어보고, 물어봤으면 quit해주고 exit.
-        # raise NoSuchElementException(f"ES Debugger: Element not found\n{xpath=}")
-
-        env = setup_env()
-        try:
-            main()
-        finally:
-            restore_env(env)
+# --------------------------------------------------------------------------------------
 
 
 class Element(WebElement, Findable):
@@ -369,33 +372,36 @@ class Element(WebElement, Findable):
                 select.select_by_visible_text(str(value))
 
 
+# --------------------------------------------------------------------------------------
+
+
 class Elements:
     def __init__(self, elements: list[Element]):
-        self.__elements = elements
-        self.__index = 0
-        self.texts = [element.text for element in self.__elements]
+        self._elements = elements
+        self._index = 0
+        self.texts = [element.text for element in self._elements]
 
     def __getitem__(self, index: int):
-        return self.__elements[index]
+        return self._elements[index]
 
     def __iter__(self):
-        self.__index = 0
+        self._index = 0
         return self
 
     def __next__(self):
-        if self.__index < len(self.__elements):
-            result = self.__elements[self.__index]
-            self.__index += 1
+        if self._index < len(self._elements):
+            result = self._elements[self._index]
+            self._index += 1
             return result
 
         raise StopIteration
 
     def up(self, levels=1, *, partial=False):
         if not partial:
-            return Elements([element.parent(levels) for element in self.__elements])
+            return Elements([element.parent(levels) for element in self._elements])
 
         result: list[Element] = []
-        for element in self.__elements:
+        for element in self._elements:
             try:
                 result.append(element.parent(levels))
             except NoSuchElementException:
@@ -445,15 +451,15 @@ class Elements:
             )
 
         if not partial:
-            return Elements([element.find(xpath=xpath) for element in self.__elements])
+            return Elements([element.find(xpath=xpath) for element in self._elements])
 
         result: list[Element] = []
         try:
-            result.append(self.__elements[0].find(xpath=xpath))
+            result.append(self._elements[0].find(xpath=xpath))
         except NoSuchElementException:
             pass
 
-        for element in self.__elements[1:]:
+        for element in self._elements[1:]:
             try:
                 result.append(Element(element.find_element(By.XPATH, xpath)))
             except NoSuchElementException:
@@ -464,35 +470,35 @@ class Elements:
     def click(self, by: Literal["default", "enter", "js", "mouse"] = "default"):
         match by:
             case "default":
-                for element in self.__elements:
+                for element in self._elements:
                     element.click()
 
             case "enter":
-                for element in self.__elements:
+                for element in self._elements:
                     element.send_keys(Keys.ENTER)
 
             case "js":
-                self.__elements[0]._driver.execute_script(
-                    "arguments.forEach(e => e.click());", *self.__elements
+                self._elements[0]._driver.execute_script(
+                    "arguments.forEach(e => e.click());", *self._elements
                 )
 
             case "mouse":
-                actions = ActionChains(self.__elements[0]._driver)
-                for element in self.__elements:
+                actions = ActionChains(self._elements[0]._driver)
+                for element in self._elements:
                     actions.click(element)
                 actions.perform()
 
     def send_keys(self, keys: str | list[str]):
         if isinstance(keys, str):
-            for element in self.__elements:
+            for element in self._elements:
                 element.send_keys(keys)
 
         else:
-            for element, key in zip(self.__elements, keys):
+            for element, key in zip(self._elements, keys):
                 element.send_keys(key)
 
     def attributes(
         self,
         name: str,
     ):
-        return [element.get_attribute(name) for element in self.__elements]
+        return [element.get_attribute(name) for element in self._elements]
