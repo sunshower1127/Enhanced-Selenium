@@ -1,4 +1,4 @@
-from models.core import ChromeDriver
+from models.core.driver import ChromeDriver
 from models.debugger import debugger
 from utils import get_xpath
 
