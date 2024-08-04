@@ -29,13 +29,21 @@ class _EnhancedSeleniumBuilder:
 
         # pyinstaller로 패키징된 실행 파일에서 실행되는지 확인
         if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-            print("This is a packaged executable. The build process will not proceed.")
+            print(
+                "This is a packaged executable. The build process will not proceed."
+            )
             return
 
         try:
             # pyinstaller 명령 실행, --distpath 옵션 추가
             subprocess.run(
-                ["pyinstaller", "--onefile", "--distpath", dist_path, file_path],
+                [
+                    "pyinstaller",
+                    "--onefile",
+                    "--distpath",
+                    dist_path,
+                    file_path,
+                ],
                 check=True,
             )
             print(f"Build completed successfully for {file_path}")

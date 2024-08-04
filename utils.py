@@ -24,6 +24,7 @@ def get_xpath(
     ] = "descendant",
     tag="*",
     id: str | list[str] | None = None,
+    id_contains: str | list[str] | None = None,
     name: str | list[str] | None = None,
     css_class: str | list[str] | None = None,
     css_class_contains: str | list[str] | None = None,
@@ -37,6 +38,7 @@ def get_xpath(
         return [value] if isinstance(value, str) else value
 
     id = ensure_list(id)  # noqa: A001
+    id_contains = ensure_list(id_contains)
     name = ensure_list(name)
     css_class = ensure_list(css_class)
     css_class_contains = ensure_list(css_class_contains)
@@ -52,6 +54,8 @@ def get_xpath(
     args: list[list[str]] = []
     if id is not None:
         args.append([f"@id='{x}'" for x in id])
+    if id_contains is not None:
+        args.append([f"contains(@id, '{x}')" for x in id_contains])
     if name is not None:
         args.append([f"@name='{x}'" for x in name])
     if css_class is not None:
@@ -65,13 +69,16 @@ def get_xpath(
     if text_not is not None:
         args.append([f"not(text()='{x}')" for x in text_not])
     if text_not_contains is not None:
-        args.append([f"not(contains(text(), '{x}'))" for x in text_not_contains])
+        args.append(
+            [f"not(contains(text(), '{x}'))" for x in text_not_contains]
+        )
     for key, value in kwargs.items():
         args.append([f"@{key}='{x}'" for x in value])
 
     xpath += ("{}" if len(args) == 0 else "[{}]").format(
         " and ".join(
-            ("{}" if len(arg) == 1 else "({})").format(" or ".join(arg)) for arg in args
+            ("{}" if len(arg) == 1 else "({})").format(" or ".join(arg))
+            for arg in args
         )
     )
 
@@ -81,9 +88,13 @@ def get_xpath(
 def get_total_secs(time_str: str):
     total_seconds = 0
     if "시간" in time_str:
-        parsed_time = datetime.strptime(time_str, "%H시간 %M분 %S초").astimezone()
+        parsed_time = datetime.strptime(
+            time_str, "%H시간 %M분 %S초"
+        ).astimezone()
         total_seconds = (
-            parsed_time.hour * 3600 + parsed_time.minute * 60 + parsed_time.second
+            parsed_time.hour * 3600
+            + parsed_time.minute * 60
+            + parsed_time.second
         )
     elif "분" in time_str:
         parsed_time = datetime.strptime(time_str, "%M분 %S초").astimezone()

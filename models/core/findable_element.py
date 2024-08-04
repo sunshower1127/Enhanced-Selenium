@@ -40,6 +40,7 @@ class Findable:
         ] = "descendant",
         tag="*",
         id: str | list[str] | None = None,
+        id_contains: str | list[str] | None = None,
         name: str | list[str] | None = None,
         css_class: str | list[str] | None = None,
         css_class_contains: str | list[str] | None = None,
@@ -54,6 +55,7 @@ class Findable:
                 axis=axis,
                 tag=tag,
                 id=id,
+                id_contains=id_contains,
                 name=name,
                 css_class=css_class,
                 css_class_contains=css_class_contains,
@@ -65,7 +67,9 @@ class Findable:
             )
 
         try:
-            self._driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
+            self._driver.wait().until(
+                EC.presence_of_element_located((By.XPATH, xpath))
+            )
         except TimeoutException as e:
             if self._driver.debug:
                 self._driver._debugfinder.find(xpath)
@@ -93,6 +97,7 @@ class Findable:
         ] = "descendant",
         tag="*",
         id: str | list[str] | None = None,
+        id_contains: str | list[str] | None = None,
         name: str | list[str] | None = None,
         css_class: str | list[str] | None = None,
         css_class_contains: str | list[str] | None = None,
@@ -107,6 +112,7 @@ class Findable:
                 axis=axis,
                 tag=tag,
                 id=id,
+                id_contains=id_contains,
                 name=name,
                 css_class=css_class,
                 css_class_contains=css_class_contains,
@@ -129,7 +135,10 @@ class Findable:
                 raise NoSuchElementException(msg) from e
 
         return Elements(
-            [Element(element) for element in self.find_elements(By.XPATH, xpath)],
+            [
+                Element(element)
+                for element in self.find_elements(By.XPATH, xpath)
+            ],
         )
 
 
@@ -143,7 +152,9 @@ class Element(WebElement, Findable):
 
     def up(self, levels=1):
         xpath = "/".join([".."] * levels)
-        self._driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
+        self._driver.wait().until(
+            EC.presence_of_element_located((By.XPATH, xpath))
+        )
         return Element(self.find_element(By.XPATH, xpath))
 
     def move_mouse(self, offset_x=0, offset_y=0):
@@ -204,7 +215,9 @@ class Elements:
 
     def up(self, levels=1, *, partial=False):
         if not partial:
-            return Elements([element.parent(levels) for element in self._elements])
+            return Elements(
+                [element.parent(levels) for element in self._elements]
+            )
 
         result: list[Element] = []
         for element in self._elements:
@@ -232,6 +245,7 @@ class Elements:
             "preceding-sibling",
         ] = "descendant",
         id: str | list[str] | None = None,
+        id_contains: str | list[str] | None = None,
         name: str | list[str] | None = None,
         css_class: str | list[str] | None = None,
         css_class_contains: str | list[str] | None = None,
@@ -247,6 +261,7 @@ class Elements:
                 axis=axis,
                 tag=tag,
                 id=id,
+                id_contains=id_contains,
                 name=name,
                 css_class=css_class,
                 css_class_contains=css_class_contains,
@@ -257,7 +272,9 @@ class Elements:
             )
 
         if not partial:
-            return Elements([element.find(xpath=xpath) for element in self._elements])
+            return Elements(
+                [element.find(xpath=xpath) for element in self._elements]
+            )
 
         result: list[Element] = []
         try:
