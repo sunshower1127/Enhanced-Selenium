@@ -51,7 +51,7 @@ class ChromeDriver(webdriver.Chrome, Findable):
         self,
         func,
         *,
-        timeout=5,
+        timeout=5.0,
         freq=0.5,
     ):
         try:
