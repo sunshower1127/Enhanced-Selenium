@@ -3,12 +3,13 @@ from models.core.driver import ChromeDriver
 from models.debugger import debugger
 from utils import get_idpw
 
-debugger.run(__file__)
 
 es = ChromeDriver()
 
 es.get("https://hana-prd-ap-4.ssu.ac.kr:8443/zu4a/zcmui2245")
 id, pw = get_idpw()
+
+es.implicitly_wait(3, 0.01)
 es.find(title="아이디 입력").send_keys(id)
 es.find(title="비밀번호 입력").send_keys(pw + "\n")
 
@@ -18,17 +19,7 @@ es.uncertain(lambda: es.find(id="sapSL_DEFAULT_BUTTON").click())
 
 while True:
     es.wait(key="q")
-    begin_time = datetime.now()
-    es.refresh()
-    es.wait(6)
-    t = es.find(text_contains="현재시간").text.split(" ")[2]
-    end_time = datetime.strptime(t, "%H:%M:%S")
-    end_time = datetime.now().replace(
-        hour=end_time.hour, minute=end_time.minute, second=end_time.second
-    )
-    print(
-        f"{begin_time=}\n{end_time=}\n{(end_time - begin_time).total_seconds()=}"
-    )
-
-
-debugger.close()
+    수강인원 = int(es.find(id="__text34-__clone9").text)
+    최대수강인원 = int(es.find(id="__text35-__clone10").text)
+    print(f"{수강인원=}, {최대수강인원=}")
+    es.find(id="__button1").click()
