@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import os
 import time
+from datetime import datetime, timedelta
 from typing import Callable, Tuple
 
 import keyboard
-from models.core.findable_element import Element, Findable
 from models.core.debug_finder import DebugFinder
+from models.core.findable_element import Element, Findable
+from models.withs import ImplicitWaitSettings, NoError
 from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
@@ -40,12 +41,18 @@ class ChromeDriver(webdriver.Chrome, Findable):
             options.add_argument("--disable-infobars")
 
         super().__init__(options=options)
+        super().implicitly_wait(0)
         self.implicitly_wait()
         self._driver = self
         self._debugfinder = DebugFinder(self)
+        self.no_error = NoError(self)
 
     def __del__(self):
-        self.quit()
+        if self.debug:
+            self.quit()
+
+    def set_wait(self, timeout: float | None = None, freq: float | None = None):
+        return ImplicitWaitSettings(self, timeout, freq)
 
     def uncertain(
         self,
@@ -66,6 +73,20 @@ class ChromeDriver(webdriver.Chrome, Findable):
         finally:
             self.implicitly_wait(timeout=orig_timeout, freq=orig_freq)
             self.debug = orig_debug
+
+    def uncertain_find_and_click(
+        self,
+        xpath,
+        *,
+        timeout=5.0,
+        freq=0.5,
+    ):
+        for _ in range(int(timeout / freq)):
+            try:
+                self.find_element("xpath", xpath).click()
+                return
+            except:
+                time.sleep(freq)
 
     def implicitly_wait(self, timeout=20.0, freq=0.5):
         self._wait = WebDriverWait(self, timeout=timeout, poll_frequency=freq)
@@ -145,9 +166,7 @@ class ChromeDriver(webdriver.Chrome, Findable):
         elif name[0] == "parent":
             self.switch_to.parent_frame()
         else:
-            self.wait().until(
-                EC.frame_to_be_available_and_switch_to_it(name[0])
-            )
+            self.wait().until(EC.frame_to_be_available_and_switch_to_it(name[0]))
 
         if len(name) > 1:
             self.goto_frame(name[1:])
