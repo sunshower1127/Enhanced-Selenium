@@ -14,6 +14,22 @@ from utils import get_xpath
 if TYPE_CHECKING:
     from driver import ChromeDriver
 
+axis_type = Literal[
+    "ancestor",
+    "ancestor-or-self",
+    "child",
+    "descendant",
+    "descendant-or-self",
+    "following",
+    "following-sibling",
+    "parent",
+    "preceding",
+    "preceding-sibling",
+]
+
+# id=["id1", "id2"]
+# id="id1 | id2"
+
 
 # Interface for find, find_all
 class Findable:
@@ -22,29 +38,19 @@ class Findable:
     find_element: Callable[[str, str], WebElement]
     find_elements: Callable[[str, str], list[WebElement]]
 
+    # !id2|id3
     def find(
         self,
         xpath="",
         *,
-        axis: Literal[
-            "ancestor",
-            "ancestor-or-self",
-            "child",
-            "descendant",
-            "descendant-or-self",
-            "following",
-            "following-sibling",
-            "parent",
-            "preceding",
-            "preceding-sibling",
-        ] = "descendant",
-        tag="*",
-        id: str | list[str] | None = None,
-        id_contains: str | list[str] | None = None,
-        name: str | list[str] | None = None,
-        css_class: str | list[str] | None = None,
-        css_class_contains: str | list[str] | None = None,
-        text: str | list[str] | None = None,
+        axis: axis_type = "descendant",
+        tag="*",  # or
+        id: str | list[str] | None = None,  # or
+        id_contains: str | list[str] | None = None,  # and or
+        name: str | list[str] | None = None,  # or
+        css_class: str | list[str] | None = None,  # and or
+        css_class_contains: str | list[str] | None = None,  # and or
+        text: str | list[str] | None = None,  # or
         text_contains: str | list[str] | None = None,
         text_not: str | list[str] | None = None,
         text_not_contains: str | list[str] | None = None,
@@ -67,9 +73,7 @@ class Findable:
             )
 
         try:
-            self._driver.wait().until(
-                EC.presence_of_element_located((By.XPATH, xpath))
-            )
+            self._driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
         except TimeoutException as e:
             if self._driver.debug:
                 self._driver._debugfinder.find(xpath)
@@ -135,10 +139,7 @@ class Findable:
                 raise NoSuchElementException(msg) from e
 
         return Elements(
-            [
-                Element(element)
-                for element in self.find_elements(By.XPATH, xpath)
-            ],
+            [Element(element) for element in self.find_elements(By.XPATH, xpath)],
         )
 
 
@@ -152,9 +153,7 @@ class Element(WebElement, Findable):
 
     def up(self, levels=1):
         xpath = "/".join([".."] * levels)
-        self._driver.wait().until(
-            EC.presence_of_element_located((By.XPATH, xpath))
-        )
+        self._driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
         return Element(self.find_element(By.XPATH, xpath))
 
     def move_mouse(self, offset_x=0, offset_y=0):
@@ -215,9 +214,7 @@ class Elements:
 
     def up(self, levels=1, *, partial=False):
         if not partial:
-            return Elements(
-                [element.parent(levels) for element in self._elements]
-            )
+            return Elements([element.parent(levels) for element in self._elements])
 
         result: list[Element] = []
         for element in self._elements:
@@ -272,9 +269,7 @@ class Elements:
             )
 
         if not partial:
-            return Elements(
-                [element.find(xpath=xpath) for element in self._elements]
-            )
+            return Elements([element.find(xpath=xpath) for element in self._elements])
 
         result: list[Element] = []
         try:

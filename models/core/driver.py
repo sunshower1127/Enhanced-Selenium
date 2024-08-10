@@ -3,15 +3,14 @@ from __future__ import annotations
 import os
 import time
 from datetime import datetime, timedelta
-from typing import Callable, Tuple
+from typing import Callable
 
 import keyboard
 from models.core.debug_finder import DebugFinder
 from models.core.findable_element import Element, Findable
-from models.withs import ImplicitWaitSettings, NoError
+from models.withs import NoError, RepeatSettings
 from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.wait import WebDriverWait
 
 
 class ChromeDriver(webdriver.Chrome, Findable):
@@ -41,38 +40,18 @@ class ChromeDriver(webdriver.Chrome, Findable):
             options.add_argument("--disable-infobars")
 
         super().__init__(options=options)
-        super().implicitly_wait(0)
-        self.implicitly_wait()
+        self.implicitly_wait(0)
         self._driver = self
         self._debugfinder = DebugFinder(self)
         self.no_error = NoError(self)
+        self.set_repeat()
 
     def __del__(self):
         if self.debug:
             self.quit()
 
-    def set_wait(self, timeout: float | None = None, freq: float | None = None):
-        return ImplicitWaitSettings(self, timeout, freq)
-
-    def uncertain(
-        self,
-        func,
-        *,
-        timeout=5.0,
-        freq=0.5,
-    ):
-        try:
-            orig_timeout = self._wait._timeout
-            orig_freq = self._wait._poll
-            orig_debug = self.debug
-            self.implicitly_wait(timeout=timeout, freq=freq)
-            self.debug = False
-            return func()
-        except Exception:
-            return None
-        finally:
-            self.implicitly_wait(timeout=orig_timeout, freq=orig_freq)
-            self.debug = orig_debug
+    def set_repeat(self, timeout: float | None = None, freq: float | None = None):
+        return RepeatSettings(self, timeout, freq)
 
     def uncertain_find_and_click(
         self,
@@ -87,9 +66,6 @@ class ChromeDriver(webdriver.Chrome, Findable):
                 return
             except:
                 time.sleep(freq)
-
-    def implicitly_wait(self, timeout=20.0, freq=0.5):
-        self._wait = WebDriverWait(self, timeout=timeout, poll_frequency=freq)
 
     def wait(
         self,
@@ -145,8 +121,6 @@ class ChromeDriver(webdriver.Chrome, Findable):
                 time2 = datetime.strptime(durtime[1], timeformat)
                 time_to_wait = abs((time2 - time1).total_seconds())
                 time.sleep(time_to_wait)
-
-        return self._wait
 
     def add_key_listener(self, key: str, callback: Callable):
         keyboard.add_hotkey(key, callback)

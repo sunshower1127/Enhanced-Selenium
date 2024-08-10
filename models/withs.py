@@ -13,7 +13,7 @@ class NoError:
         return exc_type == TimeoutException
 
 
-class ImplicitWaitSettings:
+class RepeatSettings:
     def __init__(self, driver: ChromeDriver, timeout=None, freq=None):
         self.driver = driver
         self.orig_timeout = self.driver.wait()._timeout

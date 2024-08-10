@@ -14,6 +14,7 @@ web.find(title="비밀번호 입력").send_keys(pw + "\n")
 
 web.uncertain(lambda: web.find(id="sapSL_DEFAULT_BUTTON").click())
 
+web.find(axis="")
 # 아래 0.1초 도전해봄
 # web.wait(realtime="10:00:14.30", timeformat="%H:%M:%S.%f")
 # web.refresh()
