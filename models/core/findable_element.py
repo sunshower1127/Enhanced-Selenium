@@ -14,7 +14,7 @@ from utils import get_xpath
 if TYPE_CHECKING:
     from driver import ChromeDriver
 
-axis_type = Literal[
+axis_str = Literal[
     "ancestor",
     "ancestor-or-self",
     "child",
@@ -26,6 +26,10 @@ axis_type = Literal[
     "preceding",
     "preceding-sibling",
 ]
+
+
+expr_str = str
+
 
 # id=["id1", "id2"]
 # id="id1 | id2"
@@ -43,89 +47,67 @@ class Findable:
         self,
         xpath="",
         *,
-        axis: axis_type = "descendant",
-        tag="*",  # or
-        id: str | list[str] | None = None,  # or
-        id_contains: str | list[str] | None = None,  # and or
-        name: str | list[str] | None = None,  # or
-        css_class: str | list[str] | None = None,  # and or
-        css_class_contains: str | list[str] | None = None,  # and or
-        text: str | list[str] | None = None,  # or
-        text_contains: str | list[str] | None = None,
-        text_not: str | list[str] | None = None,
-        text_not_contains: str | list[str] | None = None,
-        **kwargs: str | list[str],
+        axis: axis_str = "descendant",
+        tag="*",
+        id: expr_str | None = None,
+        id_contains: expr_str | None = None,
+        name: expr_str | None = None,
+        css_class: expr_str | None = None,
+        css_class_contains: expr_str | None = None,
+        text: expr_str | None = None,
+        text_contains: expr_str | None = None,
+        **kwargs: expr_str,
     ):
-        if not xpath:
-            xpath = get_xpath(
-                axis=axis,
-                tag=tag,
-                id=id,
-                id_contains=id_contains,
-                name=name,
-                css_class=css_class,
-                css_class_contains=css_class_contains,
-                text=text,
-                text_contains=text_contains,
-                text_not=text_not,
-                text_not_contains=text_not_contains,
-                **kwargs,
-            )
+        xpath = xpath or get_xpath(
+            axis=axis,
+            tag=tag,
+            id=id,
+            id_contains=id_contains,
+            name=name,
+            css_class=css_class,
+            css_class_contains=css_class_contains,
+            text=text,
+            text_contains=text_contains,
+            **kwargs,
+        )
 
         try:
-            self._driver.wait().until(EC.presence_of_element_located((By.XPATH, xpath)))
+            return self._driver._repeat(lambda: self.find_element(By.XPATH, xpath))
         except TimeoutException as e:
             if self._driver.debug:
                 self._driver._debugfinder.find(xpath)
+                return self._driver._repeat(lambda: self.find_element(By.XPATH, xpath))
             else:
                 msg = f"Element not found: {xpath}"
                 raise NoSuchElementException(msg) from e
-
-        return Element(self.find_element(By.XPATH, xpath))
 
     def find_all(
         self,
         xpath="",
         *,
-        axis: Literal[
-            "ancestor",
-            "ancestor-or-self",
-            "child",
-            "descendant",
-            "descendant-or-self",
-            "following",
-            "following-sibling",
-            "parent",
-            "preceding",
-            "preceding-sibling",
-        ] = "descendant",
+        axis: axis_str = "descendant",
         tag="*",
-        id: str | list[str] | None = None,
-        id_contains: str | list[str] | None = None,
-        name: str | list[str] | None = None,
-        css_class: str | list[str] | None = None,
-        css_class_contains: str | list[str] | None = None,
-        text: str | list[str] | None = None,
-        text_contains: str | list[str] | None = None,
-        text_not: str | list[str] | None = None,
-        text_not_contains: str | list[str] | None = None,
-        **kwargs: str | list[str],
+        id: expr_str | None = None,
+        id_contains: expr_str | None = None,
+        name: expr_str | None = None,
+        css_class: expr_str | None = None,
+        css_class_contains: expr_str | None = None,
+        text: expr_str | None = None,
+        text_contains: expr_str | None = None,
+        **kwargs: expr_str,
     ):
-        if not xpath:
-            xpath = get_xpath(
-                axis=axis,
-                tag=tag,
-                id=id,
-                id_contains=id_contains,
-                name=name,
-                css_class=css_class,
-                css_class_contains=css_class_contains,
-                text=text,
-                text_contains=text_contains,
-                text_not=text_not,
-                text_not_contains=text_not_contains,
-                **kwargs,
-            )
+        xpath = xpath or get_xpath(
+            axis=axis,
+            tag=tag,
+            id=id,
+            id_contains=id_contains,
+            name=name,
+            css_class=css_class,
+            css_class_contains=css_class_contains,
+            text=text,
+            text_contains=text_contains,
+            **kwargs,
+        )
 
         try:
             self._driver.wait().until(
@@ -139,7 +121,7 @@ class Findable:
                 raise NoSuchElementException(msg) from e
 
         return Elements(
-            [Element(element) for element in self.find_elements(By.XPATH, xpath)],
+            [self._driver._repeat(lambda: self.find(xpath))],
         )
 
 

@@ -1,4 +1,4 @@
-import re
+from typing import NewType
 
 from pyparsing import (
     QuotedString,
@@ -25,43 +25,63 @@ expr = infix_notation(
 )
 
 
-# Function to replace operators and add quotes around variables
-# def replace() :
+def get_prop_format(prop_name: str):
+    prop_name = prop_name.replace("css_class", "class")
+    if "text" in prop_name:
+        prop_name = prop_name.replace("text", "text()")
+    else:
+        prop_name = "@" + prop_name
 
-#     return result_str
+    idx = prop_name.find("_contains")
+    if idx != -1:
+        prop_name = prop_name[:idx]
+        return "contains(" + prop_name + ", '{}')"
+
+    return prop_name + "='{}'"
 
 
 # Parse the expression
-def parse(expression: str):
-    result = expr.parse_string(expression, parse_all=True)
-    return result.as_list()[0]
+def parse_expression(expression: str, prop_name: str):
+    parsed_expression = expr.parse_string(expression, parse_all=True).as_list()[0]
+    prop_format = get_prop_format(prop_name)
+    logical_expression = convert_to_logical_expression(parsed_expression, prop_format)
+    if logical_expression[0] == "(":
+        logical_expression = logical_expression[1:]
+    if logical_expression[-1] == ")":
+        logical_expression = logical_expression[:-1]
+
+    return logical_expression
 
 
-a = parse("!(d | e) & f")
-print(a)
+def convert_to_logical_expression(element: str, prop_format: str) -> str:
+    if isinstance(element, list):
+        if element[0] == "!" and isinstance(element[1], str):
+            element[1] = [element[1]]
 
+        temp = ""
+        if element[0] != "!":
+            temp += "("
 
-def recur(e, tag):
-    if isinstance(e, list):
-        if len(e) == 2 and e[0] == "!":
-            e[1] = [e[1]]
+        for sub_element in element:
+            temp += convert_to_logical_expression(sub_element, prop_format)
 
-        temp = "("
-
-        for i in e:
-            temp += recur(i, tag)
-        temp += ")"
+        if element[0] != "!":
+            temp += ")"
         return temp
 
-    if e == "|":
+    if element == "|":
         return " or "
-    if e == "&":
+    if element == "&":
         return " and "
-    if e == "!":
+    if element == "!":
         return "not"
 
-    return f"@{tag}='{e}'"
+    return prop_format.format(element)
 
 
-a = recur(a, "id")
-print(a)
+# Test code
+if __name__ == "__main__":
+    expression = "!A & B | C & D"
+    prop_format = "id_contains"
+    result = parse_expression(expression, prop_format)
+    print(result)
