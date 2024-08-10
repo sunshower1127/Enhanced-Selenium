@@ -79,7 +79,7 @@ class Findable:
                 return self._driver._repeat(lambda: self.find_element(By.XPATH, xpath))
             else:
                 msg = f"Element not found: {xpath}"
-                raise NoSuchElementException(msg) from e
+                raise TimeoutException(msg) from e
 
     def find_all(
         self,
@@ -110,19 +110,28 @@ class Findable:
         )
 
         try:
-            self._driver.wait().until(
-                EC.presence_of_all_elements_located((By.XPATH, xpath))
+            return Elements(
+                [
+                    Element(e)
+                    for e in self._driver._repeat(
+                        lambda: self.find_elements(By.XPATH, xpath)
+                    )
+                ]
             )
         except TimeoutException as e:
             if self._driver.debug:
                 self._driver._debugfinder.find(xpath)
+                return Elements(
+                    [
+                        Element(e)
+                        for e in self._driver._repeat(
+                            lambda: self.find_elements(By.XPATH, xpath)
+                        )
+                    ]
+                )
             else:
                 msg = f"Element not found: {xpath}"
-                raise NoSuchElementException(msg) from e
-
-        return Elements(
-            [self._driver._repeat(lambda: self.find(xpath))],
-        )
+                raise TimeoutException(msg) from e
 
 
 # --------------------------------------------------------------------------------------
