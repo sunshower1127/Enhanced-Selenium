@@ -1,25 +1,70 @@
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
+from typing import Callable
 
 
 class _EnhancedSeleniumBuilder:
-    def start(self, n=1, *, never_stop=False):
-        for _ in range(n):
-            pid = os.fork()
-            if pid == 0:
-                return
+    def start(
+        self,
+        path,
+        n=1,
+        *,
+        never_stop=False,
+        on_success: Callable[[list[int]], None] | None = None,
+    ):
+        """
+        builder.start(__file__)
+        """
 
-        if not never_stop:
-            for _ in range(n):
-                os.wait()
+        if os.environ.get("ES_BUILD") == "1":
+            return
 
-        else:
-            while True:
-                os.wait()
-                pid = os.fork()
-                if pid == 0:
-                    return
+        os.environ["ES_BUILD"] = "1"
+
+        processes: list[subprocess.Popen | None] = [None] * n
+        while True:
+            for i in range(n):
+                if processes[i] is None or processes[i].poll() is not None:
+                    if processes[i] is not None:
+                        return_code = processes[i].returncode
+                        if return_code != 0:
+                            if never_stop:
+                                print(
+                                    f"Process {i} failed with return code {return_code}. Restarting..."
+                                )
+                                processes[i] = subprocess.Popen(
+                                    [sys.executable, path],
+                                    stdin=sys.stdin,
+                                    stdout=sys.stdout,
+                                    stderr=sys.stderr,
+                                )
+                            else:
+                                print(
+                                    f"Process {i} failed with return code {return_code}. Exiting..."
+                                )
+                        else:
+                            if on_success:
+                                on_success(
+                                    [p.returncode for p in processes if p is not None]
+                                )
+                            processes[i] = None
+                    else:
+                        processes[i] = subprocess.Popen(
+                            [sys.executable, path],
+                            stdin=sys.stdin,
+                            stdout=sys.stdout,
+                            stderr=sys.stderr,
+                        )
+
+            if not never_stop:
+                break
+
+            for p in processes:
+                if p is not None:
+                    p.wait()
 
     def build(self, file_path: str, dist_path="."):
         """
@@ -29,9 +74,7 @@ class _EnhancedSeleniumBuilder:
 
         # pyinstaller로 패키징된 실행 파일에서 실행되는지 확인
         if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-            print(
-                "This is a packaged executable. The build process will not proceed."
-            )
+            print("This is a packaged executable. The build process will not proceed.")
             return
 
         try:

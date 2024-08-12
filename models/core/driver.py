@@ -3,8 +3,7 @@ from __future__ import annotations
 import os
 import time
 from datetime import datetime, timedelta
-from re import L
-from typing import Callable, Literal, Union
+from typing import Callable, Literal
 
 import keyboard
 from models.core.debug_finder import DebugFinder
@@ -12,7 +11,6 @@ from models.core.findable_element import Element, Findable
 from models.withs import NoError, RepeatSettings
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.support import expected_conditions as EC
 
 
 class ChromeDriver(webdriver.Chrome, Findable):
@@ -65,7 +63,7 @@ class ChromeDriver(webdriver.Chrome, Findable):
             except Exception:
                 pass
             time.sleep(self._freq)
-        raise TimeoutException()
+        raise TimeoutException
 
     def wait(
         self,
