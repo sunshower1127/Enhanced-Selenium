@@ -15,12 +15,14 @@ web.find(title="비밀번호 입력").send_keys(pw + "\n")
 web.uncertain(lambda: web.find(id="sapSL_DEFAULT_BUTTON").click())
 
 # 아래 0.1초 도전해봄
-web.wait(realtime="10:00:14.30", timeformat="%H:%M:%S.%f")
-web.refresh()
+# web.wait(realtime="10:00:14.30", timeformat="%H:%M:%S.%f")
+# web.refresh()
 
 # timeout을 몇초줘야하는지.
 # window 변경도 없음. 그냥 가는거야.
-web.uncertain(web.find(id="__button6-__clone1").click(), timeout=30, freq=0.01)
+web.uncertain(
+    lambda: web.find(id="__button6-__clone1").click(), timeout=30, freq=0.01
+)
 
 # def pick(i):
 #     idx = 1 + (i - 1) * 13

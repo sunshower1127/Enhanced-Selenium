@@ -16,7 +16,7 @@ web.find(title="비밀번호 입력").send_keys(pw + "\n")
 web.uncertain(lambda: web.find(id="sapSL_DEFAULT_BUTTON").click())
 
 # 아래 realtime을 timetest.py에서 뽑아내야함. 일단 0.4초는 통과고, 0.2초 도전해보자.
-web.wait(realtime="10:00:14.50", timeformat="%H:%M:%S.%f")
+web.wait(realtime="10:00:17.00", timeformat="%H:%M:%S.%f")
 web.refresh()
 
 
