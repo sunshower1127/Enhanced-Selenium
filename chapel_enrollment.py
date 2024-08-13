@@ -3,7 +3,7 @@ from utils import get_idpw
 
 # debugger.run(__file__)
 
-web = ChromeDriver(keep_alive=True)
+web = ChromeDriver()
 web.set_window_size(1920 * 3 // 4, 1080)
 web.set_window_position(0, 0)
 web.implicitly_wait(3, 0.01)
@@ -14,15 +14,40 @@ web.find(title="비밀번호 입력").send_keys(pw + "\n")
 
 web.uncertain(lambda: web.find(id="sapSL_DEFAULT_BUTTON").click())
 
+web.find(axis="")
 # 아래 0.1초 도전해봄
 # web.wait(realtime="10:00:14.30", timeformat="%H:%M:%S.%f")
 # web.refresh()
 
 # timeout을 몇초줘야하는지.
 # window 변경도 없음. 그냥 가는거야.
-web.uncertain(
-    lambda: web.find(id="__button6-__clone1").click(), timeout=30, freq=0.01
+# web.uncertain(
+#     lambda: web.find_element(value="__button6-__clone1"), timeout=30, freq=0.01
+# )
+web.wait(10)
+web.uncertain_find_and_click(
+    "//*[@id='__button6-__clone1']",
+    timeout=30,
+    freq=0.01,
 )
+
+with web.no_error, web.set_wait(30, 0.01):
+    web.uncertain_find_and_click("//*[@id='__button6-__clone1']")
+
+web.uncertain_find_and_click(
+    "//*[@id='__button6-__clone27']",
+    timeout=30,
+    freq=0.01,
+)
+
+
+print("완료")
+
+web.wait(10000)
+# print("완료")
+# with open("page_source.html", "w", encoding="utf-8") as file:
+#     file.write(web.page_source)
+
 
 # def pick(i):
 #     idx = 1 + (i - 1) * 13

@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import os
 import time
-from typing import Callable, Tuple
+from datetime import datetime, timedelta
+from typing import Callable, Literal
 
 import keyboard
-from models.core.findable_element import Element, Findable
 from models.core.debug_finder import DebugFinder
+from models.core.findable_element import Element, Findable
+from models.withs import NoError, RepeatSettings
 from selenium import webdriver
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.wait import WebDriverWait
+from selenium.common.exceptions import TimeoutException
 
 
 class ChromeDriver(webdriver.Chrome, Findable):
@@ -40,35 +40,30 @@ class ChromeDriver(webdriver.Chrome, Findable):
             options.add_argument("--disable-infobars")
 
         super().__init__(options=options)
-        self.implicitly_wait()
+        self.implicitly_wait(0)
         self._driver = self
         self._debugfinder = DebugFinder(self)
+        self.no_error = NoError(self)
+        self.set_repeat()
+        self._timeout = 5.0
+        self._freq = 0.5
 
     def __del__(self):
-        self.quit()
+        if self.debug:
+            self.quit()
 
-    def uncertain(
-        self,
-        func,
-        *,
-        timeout=5.0,
-        freq=0.5,
-    ):
-        try:
-            orig_timeout = self._wait._timeout
-            orig_freq = self._wait._poll
-            orig_debug = self.debug
-            self.implicitly_wait(timeout=timeout, freq=freq)
-            self.debug = False
-            return func()
-        except Exception:
-            return None
-        finally:
-            self.implicitly_wait(timeout=orig_timeout, freq=orig_freq)
-            self.debug = orig_debug
+    def set_repeat(self, timeout: float | None = None, freq: float | None = None):
+        return RepeatSettings(self, timeout, freq)
 
-    def implicitly_wait(self, timeout=20.0, freq=0.5):
-        self._wait = WebDriverWait(self, timeout=timeout, poll_frequency=freq)
+    def _repeat(self, func):
+        end_time = time.time() + self._timeout
+        while time.time() < end_time:
+            try:
+                return func()
+            except Exception:
+                pass
+            time.sleep(self._freq)
+        raise TimeoutException
 
     def wait(
         self,
@@ -125,45 +120,46 @@ class ChromeDriver(webdriver.Chrome, Findable):
                 time_to_wait = abs((time2 - time1).total_seconds())
                 time.sleep(time_to_wait)
 
-        return self._wait
-
     def add_key_listener(self, key: str, callback: Callable):
         keyboard.add_hotkey(key, callback)
 
     def close_all(self):
-        # quit이랑 비교해봐야함.
         for window_handle in self.window_handles:
-            self.switch_to.window(window_handle)
-            self.close()
+            try:
+                self.switch_to.window(window_handle)
+                self.close()
+            except Exception:
+                pass
 
-    def goto_frame(self, name: str | list[str] = "default"):
-        if isinstance(name, str):
-            name = [name]
+    def goto_frame(
+        self,
+        name: Literal["default", "parent"] | str,
+        *args: Literal["default", "parent"] | str,
+    ):
+        """
+        goto_frame("default", "iframe1", "iframe2")
+        """
 
-        if name[0] == "default":
+        if name == "default":
             self.switch_to.default_content()
-        elif name[0] == "parent":
+        elif name == "parent":
             self.switch_to.parent_frame()
         else:
-            self.wait().until(
-                EC.frame_to_be_available_and_switch_to_it(name[0])
-            )
+            self._repeat(lambda: self.switch_to.frame(name))
 
-        if len(name) > 1:
-            self.goto_frame(name[1:])
+        if args:
+            self.goto_frame(*args)
 
     def goto_window(self, i=0):
         """
         i가 실제 window의 순서와 다를 수 있음.
         -1 가능.
         """
-        if i >= len(self.window_handles):
-            self.wait().until(EC.number_of_windows_to_be(i + 1))
-        self.switch_to.window(self.window_handles[i])
+
+        self._repeat(lambda: self.switch_to.window(self.window_handles[i]))
 
     def goto_alert(self):
-        self.wait().until(EC.alert_is_present())
-        return self.switch_to.alert
+        return self._repeat(lambda: self.switch_to.alert)
 
     def goto_focused_element(self):
-        return Element(self.switch_to.active_element)
+        return self._repeat(lambda: Element(self.switch_to.active_element))

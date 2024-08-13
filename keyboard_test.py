@@ -2,7 +2,7 @@ from models.core.driver import ChromeDriver
 from models.debugger import debugger
 from utils import get_idpw
 
-debugger.run(__file__)
+debugger.start(__file__)
 
 web = ChromeDriver()
 
@@ -15,4 +15,4 @@ web.uncertain(lambda: web.find(id="sapSL_DEFAULT_BUTTON").click(), timeout=2)
 
 web.wait(key="esc", keys=[("q", lambda: print("q")), ("w", lambda: print("w"))])
 
-debugger.close()
+debugger.end()

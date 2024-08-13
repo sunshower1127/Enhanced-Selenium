@@ -13,19 +13,19 @@ class DebugFinder:
     def __init__(self, driver: ChromeDriver):
         self.driver = driver
         self.answers = []
-        self.Env = namedtuple("Env", ["timeout", "poll", "win_h"])
+        self.Env = namedtuple("Env", ["timeout", "freq", "win_h"])
 
     def setup_env(self):
-        timeout = self.driver.wait()._timeout
-        poll = self.driver.wait()._poll
-        self.driver.implicitly_wait(1, 0.1)
+        timeout = self.driver._timeout
+        freq = self.driver._freq
+        self.driver.set_repeat(1, 0.1)
         self.driver.debug = False
         win_h = self.driver.current_window_handle
-        self.env = self.Env(timeout, poll, win_h)
+        self.env = self.Env(timeout, freq, win_h)
 
     def restore_env(self):
-        timeout, poll, win_h = self.env
-        self.driver.implicitly_wait(timeout, poll)
+        timeout, freq, win_h = self.env
+        self.driver.set_repeat(timeout, freq)
         self.driver.debug = True
         self.driver.switch_to.window(win_h)
         self.driver.switch_to.default_content()

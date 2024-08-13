@@ -3,7 +3,6 @@
 # from pytesseract import image_to_string
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal
 
 
@@ -69,40 +68,17 @@ def get_xpath(
     if text_not is not None:
         args.append([f"not(text()='{x}')" for x in text_not])
     if text_not_contains is not None:
-        args.append(
-            [f"not(contains(text(), '{x}'))" for x in text_not_contains]
-        )
+        args.append([f"not(contains(text(), '{x}'))" for x in text_not_contains])
     for key, value in kwargs.items():
         args.append([f"@{key}='{x}'" for x in value])
 
     xpath += ("{}" if len(args) == 0 else "[{}]").format(
         " and ".join(
-            ("{}" if len(arg) == 1 else "({})").format(" or ".join(arg))
-            for arg in args
+            ("{}" if len(arg) == 1 else "({})").format(" or ".join(arg)) for arg in args
         )
     )
 
     return xpath
-
-
-def get_total_secs(time_str: str):
-    total_seconds = 0
-    if "시간" in time_str:
-        parsed_time = datetime.strptime(
-            time_str, "%H시간 %M분 %S초"
-        ).astimezone()
-        total_seconds = (
-            parsed_time.hour * 3600
-            + parsed_time.minute * 60
-            + parsed_time.second
-        )
-    elif "분" in time_str:
-        parsed_time = datetime.strptime(time_str, "%M분 %S초").astimezone()
-        total_seconds = parsed_time.minute * 60 + parsed_time.second
-    else:
-        parsed_time = datetime.strptime(time_str, "%S초").astimezone()
-        total_seconds = parsed_time.second
-    return total_seconds
 
 
 def get_idpw(path="idpw.txt", encoding="utf-8"):

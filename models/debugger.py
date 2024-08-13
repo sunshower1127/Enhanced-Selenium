@@ -6,7 +6,7 @@ import sys
 class _EnhancedSeleniumDebugger:
     QUIT_CODE = 2
 
-    def run(self, path: str):
+    def start(self, path: str):
         """
         debugger.run(__file__)
         """
@@ -52,7 +52,7 @@ class _EnhancedSeleniumDebugger:
         elif user_input == "q":
             sys.exit(self.QUIT_CODE)
 
-    def close(self):
+    def end(self):
         user_input = input("ES Debugger: End of the script. [R]etry / [Q]uit: ")
         while user_input.lower() not in ["r", "q"]:
             user_input = input()

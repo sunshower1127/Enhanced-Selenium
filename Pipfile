@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 selenium = "*"
 keyboard = "*"
+pyparsing = "*"
+tk = "*"
 
 [dev-packages]
 
