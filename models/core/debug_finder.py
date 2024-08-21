@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import namedtuple
 from typing import TYPE_CHECKING
 
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 if TYPE_CHECKING:
     from driver import ChromeDriver
@@ -68,7 +68,7 @@ class DebugFinder:
         try:
             self.driver.find(xpath)
             answers.append((win_i, [*frame_path]))
-        except:
+        except TimeoutException:
             print("element 못찾음")
 
         # find iframe

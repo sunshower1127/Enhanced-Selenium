@@ -24,7 +24,7 @@ class _EnhancedSeleniumBuilder:
 
         os.environ["ES_BUILD"] = "1"
 
-        processes: list[subprocess.Popen | None] = [None] * n
+        processes: list = [None] * n
         while True:
             for i in range(n):
                 if processes[i] is None or processes[i].poll() is not None:

@@ -1,13 +1,15 @@
+from __future__ import annotations
+
 import tkinter as tk
 from tkinter import simpledialog
-from typing import Type, TypeVar, Callable, List, Union
+from typing import Callable, TypeVar
 
 T = TypeVar("T", str, int, float)
 
 
 def get_input_from_alert(
     body: str,
-    return_type: Type[T] = str,
+    return_type: type[T] = str,
     validate_func: Callable[[T], bool] | None = None,
 ) -> T:
     """
@@ -22,26 +24,27 @@ def get_input_from_alert(
     root.withdraw()  # Hide the root window
 
     while True:
-        if return_type == str:
+        if return_type is str:
             user_input = simpledialog.askstring("", body)
-        elif return_type == int:
+        elif return_type is int:
             user_input = simpledialog.askinteger("", body)
-        elif return_type == float:
+        elif return_type is float:
             user_input = simpledialog.askfloat("", body)
         else:
-            raise ValueError("Unsupported return type")
+            msg = "Unsupported return type. Please use str, int, or float."
+            raise ValueError(msg)
 
         if user_input is None:
             continue  # If user cancels, ask again
 
-        if validate_func is None or validate_func(user_input):
+        if validate_func is None or validate_func(return_type(user_input)):
             break  # Exit loop if input is valid
 
     root.destroy()  # Destroy the root window after getting input
-    return user_input
+    return return_type(user_input)
 
 
-def get_button_choice(button_texts: List[str]) -> int:
+def get_button_choice(button_texts: list[str]) -> int:
     """
     Displays a dialog with buttons and returns the index of the clicked button.
 

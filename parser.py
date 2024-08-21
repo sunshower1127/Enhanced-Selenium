@@ -1,5 +1,3 @@
-from typing import NewType
-
 from pyparsing import (
     QuotedString,
     Suppress,

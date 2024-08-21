@@ -38,7 +38,6 @@ class Findable:
     find_element: Callable[[str, str], WebElement]
     find_elements: Callable[[str, str], list[WebElement]]
 
-    # !id2|id3
     def find(
         self,
         xpath="",

@@ -6,9 +6,9 @@ from datetime import datetime, timedelta
 from typing import Callable, Literal
 
 import keyboard
+from models.context import NoError, RepeatSettings
 from models.core.debug_finder import DebugFinder
 from models.core.findable_element import Element, Findable
-from models.withs import NoError, RepeatSettings
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 
