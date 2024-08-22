@@ -79,14 +79,15 @@ def validate_positive(value: int) -> bool:
     return value > 0
 
 
-user_input_str = get_input_from_alert("Please enter your input:", str)
-print(f"User input as str: {user_input_str}")
+if __name__ == "__main__":
+    user_input_str = get_input_from_alert("Please enter your input:", str)
+    print(f"User input as str: {user_input_str}")
 
-user_input_int = get_input_from_alert(
-    "Please enter a positive number:", int, validate_positive
-)
-print(f"User input as int: {user_input_int}")
+    user_input_int = get_input_from_alert(
+        "Please enter a positive number:", int, validate_positive
+    )
+    print(f"User input as int: {user_input_int}")
 
-button_texts = ["Option 1", "Option 2", "Option 3"]
-button_choice = get_button_choice(button_texts)
-print(f"User selected button index: {button_choice}")
+    button_texts = ["Option 1", "Option 2", "Option 3"]
+    button_choice = get_button_choice(button_texts)
+    print(f"User selected button index: {button_choice}")
