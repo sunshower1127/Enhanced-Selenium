@@ -1,9 +1,13 @@
-from models.core.driver import ChromeDriver
+# from typing import TYPE_CHECKING
+
 from selenium.common.exceptions import TimeoutException
+
+# if TYPE_CHECKING:
+#     from models.core.driver import ChromeDriver
 
 
 class NoError:
-    def __init__(self, driver: ChromeDriver):
+    def __init__(self, driver):
         self.driver = driver
 
     def __enter__(self):
@@ -13,8 +17,8 @@ class NoError:
         return exc_type == TimeoutException
 
 
-class RepeatSettings:
-    def __init__(self, driver: ChromeDriver, timeout=None, freq=None):
+class RepeatSetting:
+    def __init__(self, driver, timeout=None, freq=None):
         self.driver = driver
         self.orig_timeout = self.driver._timeout
         self.orig_freq = self.driver._freq
@@ -23,9 +27,11 @@ class RepeatSettings:
         self.freq = freq or self.orig_freq
 
     def __enter__(self):
-        self.driver.set_repeat(timeout=self.timeout, freq=self.freq)
+        self.driver._timeout = self.timeout
+        self.driver._freq = self.freq
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.driver.set_repeat(timeout=self.orig_timeout, freq=self.orig_freq)
+        self.driver._timeout = self.orig_timeout
+        self.driver._freq = self.orig_freq
         return False  # 예외를 억제하지 않음

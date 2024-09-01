@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Callable, Literal
 
 import keyboard
-from models.context import NoError, RepeatSettings
+from models.context import NoError, RepeatSetting
 from models.core.debug_finder import DebugFinder
 from models.core.findable_element import Element, Findable
 from selenium import webdriver
@@ -44,7 +44,6 @@ class ChromeDriver(webdriver.Chrome, Findable):
         self._driver = self
         self._debugfinder = DebugFinder(self)
         self.no_error = NoError(self)
-        self.set_repeat()
         self._timeout = 5.0
         self._freq = 0.5
 
@@ -53,7 +52,7 @@ class ChromeDriver(webdriver.Chrome, Findable):
             self.quit()
 
     def set_repeat(self, timeout: float | None = None, freq: float | None = None):
-        return RepeatSettings(self, timeout, freq)
+        return RepeatSetting(self, timeout, freq)
 
     def _repeat(self, func):
         end_time = time.time() + self._timeout

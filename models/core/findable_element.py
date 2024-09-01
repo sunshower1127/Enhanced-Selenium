@@ -151,10 +151,13 @@ class Element(WebElement, Findable):
         ).perform()
         return self
 
-    def click(self, by: Literal["default", "enter", "js", "mouse"] = "default"):
+    def click(self, by: Literal["enter", "js", "mouse"] = "js"):
+        """
+        기존 python_selenium이 지원하는 click 메서드는 가끔 클릭 안되는 에러가 있으니
+        에러가 안나는 방향의 클릭들을 지원함.
+        default = js
+        """
         match by:
-            case "default":
-                func = lambda: super().click()
             case "enter":
                 func = lambda: self.send_keys(Keys.ENTER)
             case "js":
