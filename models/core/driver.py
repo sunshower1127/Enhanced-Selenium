@@ -17,7 +17,7 @@ class ChromeDriver(webdriver.Chrome, Findable):
     def __init__(
         self,
         *,
-        keep_alive=False,
+        keep_alive=True,
         audio=False,
         maximize=True,
         headless=False,
@@ -26,7 +26,7 @@ class ChromeDriver(webdriver.Chrome, Findable):
     ):
         self.debug = os.environ.get("ES_DEBUG") == "1"
         options = webdriver.ChromeOptions()
-        if keep_alive:
+        if not keep_alive and not self.debug:
             options.add_experimental_option("detach", value=True)
         if not audio:
             options.add_argument("--mute-audio")
