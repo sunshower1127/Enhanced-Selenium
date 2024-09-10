@@ -74,12 +74,11 @@ def get_button_choice(button_texts: list[str]) -> int:
     return choice.get()
 
 
-# Example usage:
-def validate_positive(value: int) -> bool:
-    return value > 0
-
-
 if __name__ == "__main__":
+    # Example usage:
+    def validate_positive(value: int) -> bool:
+        return value > 0
+
     user_input_str = get_input_from_alert("Please enter your input:", str)
     print(f"User input as str: {user_input_str}")
 

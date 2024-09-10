@@ -7,12 +7,12 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
-from utils import get_xpath
+
+from ..._utils.utils import get_xpath
 
 if TYPE_CHECKING:
-    from driver import ChromeDriver
+    from .driver import EnhancedChrome
 
 axis_str = Literal[
     "ancestor",
@@ -34,7 +34,7 @@ expr_str = str
 # Interface for find, find_all
 class Findable:
     # From other classes
-    _driver: ChromeDriver
+    _driver: EnhancedChrome
     find_element: Callable[[str, str], WebElement]
     find_elements: Callable[[str, str], list[WebElement]]
 
@@ -139,7 +139,7 @@ class Findable:
 class Element(WebElement, Findable):
     def __init__(self, element: WebElement):
         super().__init__(element.parent, element.id)
-        self._driver: ChromeDriver = super().parent
+        self._driver: EnhancedChrome = super().parent
 
     def up(self, levels=1):
         xpath = "/".join([".."] * levels)

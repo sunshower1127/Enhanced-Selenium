@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 if TYPE_CHECKING:
-    from driver import ChromeDriver
+    from .driver import EnhancedChrome
 
 
 class DebugFinder:
-    def __init__(self, driver: ChromeDriver):
+    def __init__(self, driver: EnhancedChrome):
         self.driver = driver
         self.answers = []
         self.Env = namedtuple("Env", ["timeout", "freq", "win_h"])

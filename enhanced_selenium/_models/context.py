@@ -6,7 +6,7 @@ from selenium.common.exceptions import TimeoutException
 #     from models.core.driver import ChromeDriver
 
 
-class NoError:
+class _NoError:
     def __init__(self, driver):
         self.driver = driver
 
@@ -17,7 +17,7 @@ class NoError:
         return exc_type == TimeoutException
 
 
-class RepeatSetting:
+class _RepeatSetting:
     def __init__(self, driver, timeout=None, freq=None):
         self.driver = driver
         self.orig_timeout = self.driver._timeout

@@ -6,14 +6,15 @@ from datetime import datetime, timedelta
 from typing import Callable, Literal
 
 import keyboard
-from models.context import NoError, RepeatSetting
-from models.core.debug_finder import DebugFinder
-from models.core.findable_element import Element, Findable
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 
+from ..context import _NoError, _RepeatSetting
+from .debug_finder import DebugFinder
+from .findable_element import Element, Findable
 
-class ChromeDriver(webdriver.Chrome, Findable):
+
+class EnhancedChrome(webdriver.Chrome, Findable):
     def __init__(
         self,
         *,
@@ -26,7 +27,7 @@ class ChromeDriver(webdriver.Chrome, Findable):
     ):
         self.debug = os.environ.get("ES_DEBUG") == "1"
         options = webdriver.ChromeOptions()
-        if not keep_alive and not self.debug:
+        if keep_alive or self.debug:
             options.add_experimental_option("detach", value=True)
         if not audio:
             options.add_argument("--mute-audio")
@@ -43,7 +44,7 @@ class ChromeDriver(webdriver.Chrome, Findable):
         self.implicitly_wait(0)
         self._driver = self
         self._debugfinder = DebugFinder(self)
-        self.no_error = NoError(self)
+        self.no_error = _NoError(self)
         self._timeout = 5.0
         self._freq = 0.5
 
@@ -52,7 +53,7 @@ class ChromeDriver(webdriver.Chrome, Findable):
             self.quit()
 
     def set_repeat(self, timeout: float | None = None, freq: float | None = None):
-        return RepeatSetting(self, timeout, freq)
+        return _RepeatSetting(self, timeout, freq)
 
     def _repeat(self, func):
         end_time = time.time() + self._timeout
