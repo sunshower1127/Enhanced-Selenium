@@ -131,24 +131,31 @@ class EnhancedChrome(webdriver.Chrome, Findable):
             except Exception:
                 pass
 
-    def goto_frame(
-        self,
-        name: Literal["default", "parent"] | str,
-        *args: Literal["default", "parent"] | str,
-    ):
+    def goto_frame(self, path="/"):
         """
-        goto_frame("default", "iframe1", "iframe2")
+        absolute path, relative path 모두 가능.
+        index, id, name 모두 가능.
+        goto_frame("/frame1_id")
         """
 
-        if name == "default":
+        split_path = path.split("/")
+
+        if split_path[0] == "":
             self.switch_to.default_content()
-        elif name == "parent":
-            self.switch_to.parent_frame()
-        else:
-            self._repeat(lambda: self.switch_to.frame(name))
+            split_path = split_path[1:]
 
-        if args:
-            self.goto_frame(*args)
+        elif split_path[0] == ".":
+            split_path = split_path[1:]
+
+        for node in split_path:
+            if node == "":
+                continue
+            if node == "..":
+                self.switch_to.parent_frame()
+            elif node.isdigit():
+                self.switch_to.frame(int(node))
+            else:
+                self._repeat(lambda node=node: self.switch_to.frame(node))
 
     def goto_window(self, i=0):
         """

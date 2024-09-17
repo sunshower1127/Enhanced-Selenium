@@ -3,82 +3,28 @@
 # from pytesseract import image_to_string
 from __future__ import annotations
 
-from typing import Literal
+from enhanced_selenium._utils.parser import parse_expression
 
 
-# 테스트 통과
-def get_xpath(
-    *,
-    axis: Literal[
-        "ancestor",
-        "ancestor-or-self",
-        "child",
-        "descendant",
-        "descendant-or-self",
-        "following",
-        "following-sibling",
-        "parent",
-        "preceding",
-        "preceding-sibling",
-    ] = "descendant",
-    tag="*",
-    id: str | list[str] | None = None,
-    id_contains: str | list[str] | None = None,
-    name: str | list[str] | None = None,
-    css_class: str | list[str] | None = None,
-    css_class_contains: str | list[str] | None = None,
-    text: str | list[str] | None = None,
-    text_contains: str | list[str] | None = None,
-    text_not: str | list[str] | None = None,
-    text_not_contains: str | list[str] | None = None,
-    **kwargs: str | list[str],
-):
-    def ensure_list(value):
-        return [value] if isinstance(value, str) else value
+def get_xpath(data: dict):
+    data = data.copy()
+    data.pop("self", None)
+    data.pop("xpath", None)
 
-    id = ensure_list(id)  # noqa: A001
-    id_contains = ensure_list(id_contains)
-    name = ensure_list(name)
-    css_class = ensure_list(css_class)
-    css_class_contains = ensure_list(css_class_contains)
-    text = ensure_list(text)
-    text_contains = ensure_list(text_contains)
-    text_not = ensure_list(text_not)
-    text_not_contains = ensure_list(text_not_contains)
-    for key, value in kwargs.items():
-        kwargs[key] = ensure_list(value)
+    if "kwargs" in data:
+        for key, value in data["kwargs"].items():
+            data[key] = value
+        del data["kwargs"]
 
-    xpath = axis + "::" + tag
+    header = data.pop("axis", "descendant") + "::" + data.pop("tag", "*") + "["
+    body = []
+    for key, value in data.items():
+        if value is None:
+            continue
 
-    args: list[list[str]] = []
-    if id is not None:
-        args.append([f"@id='{x}'" for x in id])
-    if id_contains is not None:
-        args.append([f"contains(@id, '{x}')" for x in id_contains])
-    if name is not None:
-        args.append([f"@name='{x}'" for x in name])
-    if css_class is not None:
-        args.append([f"@class='{x}'" for x in css_class])
-    if css_class_contains is not None:
-        args.append([f"contains(@class, '{x}')" for x in css_class_contains])
-    if text is not None:
-        args.append([f"text()='{x}'" for x in text])
-    if text_contains is not None:
-        args.append([f"contains(text(), '{x}')" for x in text_contains])
-    if text_not is not None:
-        args.append([f"not(text()='{x}')" for x in text_not])
-    if text_not_contains is not None:
-        args.append([f"not(contains(text(), '{x}'))" for x in text_not_contains])
-    for key, value in kwargs.items():
-        args.append([f"@{key}='{x}'" for x in value])
+        body.append(parse_expression(value, key))
 
-    xpath += ("{}" if len(args) == 0 else "[{}]").format(
-        " and ".join(
-            ("{}" if len(arg) == 1 else "({})").format(" or ".join(arg)) for arg in args
-        )
-    )
-
-    return xpath
+    return header + " and ".join(body) + "]"
 
 
 def get_idpw(path="idpw.txt", encoding="utf-8"):

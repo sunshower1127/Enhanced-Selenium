@@ -41,30 +41,20 @@ class Findable:
     def find(
         self,
         xpath="",
+        /,
         *,
         axis: axis_str = "descendant",
         tag="*",
         id: expr_str | None = None,
         id_contains: expr_str | None = None,
         name: expr_str | None = None,
-        css_class: expr_str | None = None,
-        css_class_contains: expr_str | None = None,
+        class_name: expr_str | None = None,
+        class_name_contains: expr_str | None = None,
         text: expr_str | None = None,
         text_contains: expr_str | None = None,
         **kwargs: expr_str,
     ):
-        xpath = xpath or get_xpath(
-            axis=axis,
-            tag=tag,
-            id=id,
-            id_contains=id_contains,
-            name=name,
-            css_class=css_class,
-            css_class_contains=css_class_contains,
-            text=text,
-            text_contains=text_contains,
-            **kwargs,
-        )
+        xpath = xpath or get_xpath(locals())
 
         try:
             return Element(
@@ -78,59 +68,72 @@ class Findable:
                 )
             else:
                 msg = f"Element not found: {xpath}"
-                raise TimeoutException(msg) from e
+                raise TimeoutException(msg) from None
 
-    def find_all(
+    def find_or_none(
         self,
         xpath="",
+        /,
         *,
         axis: axis_str = "descendant",
         tag="*",
         id: expr_str | None = None,
         id_contains: expr_str | None = None,
         name: expr_str | None = None,
-        css_class: expr_str | None = None,
-        css_class_contains: expr_str | None = None,
+        class_name: expr_str | None = None,
+        class_name_contains: expr_str | None = None,
         text: expr_str | None = None,
         text_contains: expr_str | None = None,
         **kwargs: expr_str,
     ):
-        xpath = xpath or get_xpath(
-            axis=axis,
-            tag=tag,
-            id=id,
-            id_contains=id_contains,
-            name=name,
-            css_class=css_class,
-            css_class_contains=css_class_contains,
-            text=text,
-            text_contains=text_contains,
-            **kwargs,
-        )
+        xpath = xpath or get_xpath(locals())
 
         try:
-            return Elements(
-                [
-                    Element(e)
-                    for e in self._driver._repeat(
-                        lambda: self.find_elements(By.XPATH, xpath)
-                    )
-                ]
-            )
-        except TimeoutException as e:
-            if self._driver.debug:
-                self._driver._debugfinder.find(xpath)
-                return Elements(
-                    [
-                        Element(e)
-                        for e in self._driver._repeat(
-                            lambda: self.find_elements(By.XPATH, xpath)
-                        )
-                    ]
-                )
-            else:
-                msg = f"Element not found: {xpath}"
-                raise TimeoutException(msg) from e
+            return Element(self.find_element(By.XPATH, xpath))
+        except (TimeoutException, NoSuchElementException) as e:
+            print("LOG: find_or_none: ", e)
+            return None
+
+    def find_all(
+        self,
+        xpath="",
+        /,
+        *,
+        axis: axis_str = "descendant",
+        tag="*",
+        id: expr_str | None = None,
+        id_contains: expr_str | None = None,
+        name: expr_str | None = None,
+        class_name: expr_str | None = None,
+        class_name_contains: expr_str | None = None,
+        text: expr_str | None = None,
+        text_contains: expr_str | None = None,
+        **kwargs: expr_str,
+    ):
+        xpath = xpath or get_xpath(locals())
+
+        self.find(xpath)
+        return Elements([Element(e) for e in self.find_elements(By.XPATH, xpath)])
+
+    def find_all_or_none(
+        self,
+        xpath="",
+        /,
+        *,
+        axis: axis_str = "descendant",
+        tag="*",
+        id: expr_str | None = None,
+        id_contains: expr_str | None = None,
+        name: expr_str | None = None,
+        class_name: expr_str | None = None,
+        class_name_contains: expr_str | None = None,
+        text: expr_str | None = None,
+        text_contains: expr_str | None = None,
+        **kwargs: expr_str,
+    ):
+        xpath = xpath or get_xpath(locals())
+
+        return Elements([Element(e) for e in self.find_elements(By.XPATH, xpath)])
 
 
 # --------------------------------------------------------------------------------------
@@ -208,6 +211,9 @@ class Elements:
 
         raise StopIteration
 
+    def __bool__(self):
+        return bool(self._elements)
+
     def up(self, levels=1, *, partial=False):
         if not partial:
             return Elements([element.up(levels) for element in self._elements])
@@ -230,36 +236,37 @@ class Elements:
         id: expr_str | None = None,
         id_contains: expr_str | None = None,
         name: expr_str | None = None,
-        css_class: expr_str | None = None,
-        css_class_contains: expr_str | None = None,
+        class_name: expr_str | None = None,
+        class_name_contains: expr_str | None = None,
         text: expr_str | None = None,
         text_contains: expr_str | None = None,
-        partial=False,
         **kwargs: expr_str,
     ):
-        xpath = xpath or get_xpath(
-            axis=axis,
-            tag=tag,
-            id=id,
-            id_contains=id_contains,
-            name=name,
-            css_class=css_class,
-            css_class_contains=css_class_contains,
-            text=text,
-            text_contains=text_contains,
-            **kwargs,
-        )
+        xpath = xpath or get_xpath(locals())
 
-        if not partial:
-            return Elements([element.find(xpath=xpath) for element in self._elements])
+        return Elements([element.find(xpath) for element in self._elements])
+
+    def find_or_none(
+        self,
+        xpath="",
+        *,
+        axis: axis_str = "descendant",
+        tag="*",
+        id: expr_str | None = None,
+        id_contains: expr_str | None = None,
+        name: expr_str | None = None,
+        class_name: expr_str | None = None,
+        class_name_contains: expr_str | None = None,
+        text: expr_str | None = None,
+        text_contains: expr_str | None = None,
+        **kwargs: expr_str,
+    ):
+        xpath = xpath or get_xpath(locals())
 
         result: list[Element] = []
         for element in self._elements:
-            try:
-                result.append(element.find(xpath=xpath))
-            except NoSuchElementException:
-                pass
-
+            if (e := element.find_or_none(xpath)) is not None:
+                result.append(e)
         return Elements(result)
 
     def click(self, by: Literal["default", "enter", "js", "mouse"] = "default"):

@@ -64,6 +64,7 @@ class DebugFinder:
         self.restore_env()
 
     def _dfs(self, answers, xpath, win_i, frame_path):
+        print(f"{win_i=}, {frame_path=}")
         # find element
         try:
             self.driver.find(xpath)
