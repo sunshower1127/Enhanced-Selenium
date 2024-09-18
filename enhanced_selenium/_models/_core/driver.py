@@ -118,6 +118,7 @@ class EnhancedChrome(webdriver.Chrome, Findable):
                 time1 = datetime.strptime(durtime[0], timeformat)
                 time2 = datetime.strptime(durtime[1], timeformat)
                 time_to_wait = abs((time2 - time1).total_seconds())
+                print(time_to_wait)
                 time.sleep(time_to_wait)
 
     def add_key_listener(self, key: str, callback: Callable):

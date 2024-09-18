@@ -16,7 +16,7 @@ def get_xpath(data: dict):
             data[key] = value
         del data["kwargs"]
 
-    header = data.pop("axis", "descendant") + "::" + data.pop("tag", "*") + "["
+    header = data.pop("axis", "descendant") + "::" + data.pop("tag", "*")
     body = []
     for key, value in data.items():
         if value is None:
@@ -24,7 +24,10 @@ def get_xpath(data: dict):
 
         body.append(parse_expression(value, key))
 
-    return header + " and ".join(body) + "]"
+    if body:
+        return f"{header}[{ ' and '.join(body) }]"
+    else:
+        return header
 
 
 def get_idpw(path="idpw.txt", encoding="utf-8"):

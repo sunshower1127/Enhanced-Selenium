@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from pyparsing import (
+    Combine,
+    OneOrMore,
     QuotedString,
     Suppress,
+    White,
     Word,
+    ZeroOrMore,
     infix_notation,
     one_of,
     opAssoc,
@@ -11,8 +15,11 @@ from pyparsing import (
 )
 
 # Define the grammar
+word = Word(pyparsing_unicode.alphanums + "_-")
 identifier = (
-    Word(pyparsing_unicode.alphanums + "_-") | QuotedString('"') | QuotedString("'")
+    Combine(OneOrMore(word + ZeroOrMore(White() + word)))
+    | QuotedString('"')
+    | QuotedString("'")
 )
 operator = one_of("! & |")
 lparen = Suppress("(")
@@ -97,19 +104,17 @@ def convert_to_logical_expression(element: str | list, prop_format: str) -> str:
 
 """
 
-!A -> (!A) 인데 이걸 !(A)로 바꾸려고 했고
+오케이.
 
-!(A & B) -> (!(A&B)) 인데 이걸 !(A&B)로 바꾸려고 함.
-
-즉,
-!로 시작하는 리스트는 괄호로 안감쌈.
-
-이제 !에서 괄호만 제거하면될거같은데
+A B C -> 는 "A B C" 로 입력되게 했구요.
+양쪽 띄어쓰기들은 제거 되게 해놨으니깐 
+굳이 인식되게 하려면 따움표 쓰면 됩니다.
+이상.
 
 """
 # Test code
 if __name__ == "__main__":
-    expression = "!(A & B) | C "
+    expression = "A & B  C "
     prop_format = "text"
     result = parse_expression(expression, prop_format)
     print(result)

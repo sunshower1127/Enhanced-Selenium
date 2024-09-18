@@ -55,7 +55,7 @@ class Findable:
         **kwargs: expr_str,
     ):
         xpath = xpath or get_xpath(locals())
-
+        print(f"LOG: find: {xpath=}")
         try:
             return Element(
                 self._driver._repeat(lambda: self.find_element(By.XPATH, xpath))
@@ -67,7 +67,7 @@ class Findable:
                     self._driver._repeat(lambda: self.find_element(By.XPATH, xpath))
                 )
             else:
-                msg = f"Element not found: {xpath}"
+                msg = f"\n**Element not found**\n{xpath=}\n"
                 raise TimeoutException(msg) from None
 
     def find_or_none(
@@ -214,18 +214,8 @@ class Elements:
     def __bool__(self):
         return bool(self._elements)
 
-    def up(self, levels=1, *, partial=False):
-        if not partial:
-            return Elements([element.up(levels) for element in self._elements])
-
-        result: list[Element] = []
-        for element in self._elements:
-            try:
-                result.append(element.up(levels))
-            except NoSuchElementException:
-                pass
-
-        return Elements(result)
+    def up(self, levels=1):
+        return Elements([element.up(levels) for element in self._elements])
 
     def find(
         self,
