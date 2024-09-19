@@ -1,6 +1,6 @@
 # from typing import TYPE_CHECKING
 
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 # if TYPE_CHECKING:
 #     from models.core.driver import ChromeDriver
@@ -9,12 +9,17 @@ from selenium.common.exceptions import TimeoutException
 class _NoError:
     def __init__(self, driver):
         self.driver = driver
+        self.debug = self.driver.debug
 
     def __enter__(self):
+        if self.debug:
+            self.driver.debug = False
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        return exc_type == TimeoutException
+        if self.debug:
+            self.driver.debug = True
+        return True
 
 
 class _RepeatSetting:

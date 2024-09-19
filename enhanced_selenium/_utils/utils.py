@@ -3,32 +3,6 @@
 # from pytesseract import image_to_string
 from __future__ import annotations
 
-from enhanced_selenium._utils.parser import parse_expression
-
-
-def get_xpath(data: dict):
-    data = data.copy()
-    data.pop("self", None)
-    data.pop("xpath", None)
-
-    if "kwargs" in data:
-        for key, value in data["kwargs"].items():
-            data[key] = value
-        del data["kwargs"]
-
-    header = data.pop("axis", "descendant") + "::" + data.pop("tag", "*")
-    body = []
-    for key, value in data.items():
-        if value is None:
-            continue
-
-        body.append(parse_expression(value, key))
-
-    if body:
-        return f"{header}[{ ' and '.join(body) }]"
-    else:
-        return header
-
 
 def get_idpw(path="idpw.txt", encoding="utf-8"):
     with open(path, encoding=encoding) as file:

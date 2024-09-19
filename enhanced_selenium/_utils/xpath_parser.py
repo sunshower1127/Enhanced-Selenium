@@ -67,8 +67,6 @@ def parse_expression(expression: str, prop_name: str):
 
     preprocess_for_not(parsed_expression)
 
-    print(parsed_expression)
-
     prop_format = get_prop_format(prop_name)
     logical_expression = convert_to_logical_expression(parsed_expression, prop_format)
     if logical_expression[0] == "(":
@@ -100,6 +98,30 @@ def convert_to_logical_expression(element: str | list, prop_format: str) -> str:
         return "not"
 
     return prop_format.format(element)
+
+
+def get_xpath(data: dict):
+    data = data.copy()
+    data.pop("self", None)
+    data.pop("xpath", None)
+
+    if "kwargs" in data:
+        for key, value in data["kwargs"].items():
+            data[key] = value
+        del data["kwargs"]
+
+    header = data.pop("axis", "descendant") + "::" + data.pop("tag", "*")
+    body = []
+    for key, value in data.items():
+        if value is None:
+            continue
+
+        body.append(parse_expression(value, key))
+
+    if body:
+        return f"{header}[{ ' and '.join(body) }]"
+    else:
+        return header
 
 
 """

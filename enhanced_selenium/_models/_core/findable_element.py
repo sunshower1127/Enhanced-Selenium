@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, Literal
 
+from enhanced_selenium._utils.xpath_parser import get_xpath
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import Select
-
-from ..._utils.utils import get_xpath
 
 if TYPE_CHECKING:
     from .driver import EnhancedChrome
@@ -58,13 +57,13 @@ class Findable:
         print(f"LOG: find: {xpath=}")
         try:
             return Element(
-                self._driver._repeat(lambda: self.find_element(By.XPATH, xpath))
+                self._driver._retry(lambda: self.find_element(By.XPATH, xpath))
             )
         except TimeoutException as e:
             if self._driver.debug:
                 self._driver._debugfinder.find(xpath)
                 return Element(
-                    self._driver._repeat(lambda: self.find_element(By.XPATH, xpath))
+                    self._driver._retry(lambda: self.find_element(By.XPATH, xpath))
                 )
             else:
                 msg = f"\n**Element not found**\n{xpath=}\n"
@@ -90,8 +89,7 @@ class Findable:
 
         try:
             return Element(self.find_element(By.XPATH, xpath))
-        except (TimeoutException, NoSuchElementException) as e:
-            print("LOG: find_or_none: ", e)
+        except (TimeoutException, NoSuchElementException):
             return None
 
     def find_all(
@@ -146,7 +144,7 @@ class Element(WebElement, Findable):
 
     def up(self, levels=1):
         xpath = "/".join([".."] * levels)
-        return Element(self._driver._repeat(lambda: self.find_element(By.XPATH, xpath)))
+        return Element(self._driver._retry(lambda: self.find_element(By.XPATH, xpath)))
 
     def move_mouse(self, offset_x=0, offset_y=0):
         ActionChains(self._parent).move_to_element_with_offset(
@@ -154,7 +152,7 @@ class Element(WebElement, Findable):
         ).perform()
         return self
 
-    def click(self, by: Literal["enter", "js", "mouse"] = "js"):
+    def click(self, by: Literal["enter", "js", "mouse"] = "enter"):
         """
         기존 python_selenium이 지원하는 click 메서드는 가끔 클릭 안되는 에러가 있으니
         에러가 안나는 방향의 클릭들을 지원함.
@@ -170,7 +168,7 @@ class Element(WebElement, Findable):
             case "mouse":
                 func = lambda: ActionChains(self._parent).click(self).perform()
 
-        self._driver._repeat(func)
+        self._driver._retry(func)
 
     def select(
         self,
