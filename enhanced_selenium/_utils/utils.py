@@ -4,13 +4,6 @@
 from __future__ import annotations
 
 
-def get_idpw(path="idpw.txt", encoding="utf-8"):
-    with open(path, encoding=encoding) as file:
-        id = file.readline().strip()  # noqa: A001
-        pw = file.readline().strip()
-    return id, pw
-
-
 # def solve_captcha(captcha_img: bytes) -> str:
 #     """
 #     주어진 캡챠 이미지를 해석하여 문자열로 반환합니다.
